@@ -78,7 +78,7 @@ internal sealed partial class LiturgyNode
             if (count < WarningThreshold)
                 continue;
 
-            var hasSuppression = entry.Method.GetCustomAttribute<SuppressWarningsAttribute>() is not null;
+            var hasSuppression = entry.Method.GetCustomAttribute<SuppressWarnings>() is not null;
             if (hasSuppression)
             {
                 // Mark as warned so we don't warn again at runtime
@@ -171,7 +171,7 @@ internal sealed partial class LiturgyNode
             // Check for dangerous patterns: PerNode process without a type filter
             if (mode == FrameMode.PerNode && (nodeType is null || nodeType == typeof(Node)))
             {
-                var hasSuppression = method.GetCustomAttribute<SuppressWarningsAttribute>() is not null;
+                var hasSuppression = method.GetCustomAttribute<SuppressWarnings>() is not null;
                 
                 if (!hasSuppression)
                 {
@@ -528,7 +528,7 @@ internal sealed partial class LiturgyNode
             // Check if we just crossed the threshold and haven't warned yet
             if (newCount < WARNING_THRESHOLD || _processEntryWarned.Contains(methodName)) return;
 
-            var hasSuppression = entry.Method.GetCustomAttribute<SuppressWarningsAttribute>() is not null;
+            var hasSuppression = entry.Method.GetCustomAttribute<SuppressWarnings>() is not null;
             _processEntryWarned.Add(methodName);
                 
             if (!hasSuppression)

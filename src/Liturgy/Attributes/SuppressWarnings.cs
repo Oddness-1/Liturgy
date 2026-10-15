@@ -27,5 +27,5 @@ public static partial class Rite
     /// </code>
     /// </example>
     [AttributeUsage(AttributeTargets.Method, Inherited = false)]
-    public sealed class SuppressWarningsAttribute : Attribute;
+    public sealed class SuppressWarnings : Attribute;
 }

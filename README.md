@@ -67,10 +67,10 @@ public static class Feedback
 
 ### How it attaches
 
-The package ships a small source generator that adds a module initializer to your game assembly. It runs the first
-time any of your C# executes, which is before `/root` enters the scene tree, and adds a node named `Liturgy` as
-`/root`'s first child. Liturgy is therefore ready before every autoload and the main scene, exactly like the first
-autoload in the list. In the editor it does nothing.
+The package ships a small source generator that adds a module initializer to your game assembly. Depending on when
+Godot first runs your C#, it either registers a `Liturgy` autoload in memory (nothing is written to `project.godot`),
+or adds the `Liturgy` node to `/root` directly. Either way Liturgy is ready before the main scene, like an autoload
+you never have to configure. In the editor it does nothing.
 
 Only assemblies that reference Liturgy are scanned for hooks, so large dependencies cost nothing at startup.
 
