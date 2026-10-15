@@ -1,0 +1,17 @@
+<Project Sdk="Godot.NET.Sdk/4.7.2">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+    <Nullable>enable</Nullable>
+    <LangVersion>14</LangVersion>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <!-- Consumes Liturgy from source. A package consumer needs only <PackageReference Include="Liturgy.Godot" />. -->
+  <ItemGroup>
+    <ProjectReference Include="..\src\Liturgy\Liturgy.csproj" />
+    <ProjectReference Include="..\src\Liturgy.Generators\Liturgy.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+</Project>

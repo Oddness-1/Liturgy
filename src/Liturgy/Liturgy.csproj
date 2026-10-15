@@ -1,0 +1,38 @@
+<Project Sdk="Godot.NET.Sdk/4.7.2">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <LangVersion>14</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <AssemblyName>Liturgy</AssemblyName>
+    <RootNamespace>Liturgy</RootNamespace>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+
+    <!-- NuGet packaging. Pack with: dotnet pack -c ExportRelease (Debug builds reference GodotSharpEditor). -->
+    <IsPackable>true</IsPackable>
+    <PackageId>Liturgy.Godot</PackageId>
+    <Version>1.0.0</Version>
+    <Authors>Oddness</Authors>
+    <Description>Attribute-based global hooks for Godot C#. Mark static methods with [Rite.OnReady], [Rite.OnButtonPressed], [Rite.OnProcess] and more, and Liturgy wires them up across the whole scene tree. No addon, no autoload, no setup.</Description>
+    <PackageTags>godot;godot4;gamedev;attributes;hooks;signals;source-generator</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageOutputPath>S:\Game Dev\Libraries\NuGet (Local)</PackageOutputPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Builds the generator first; it ships inside this package rather than as a dependency. -->
+    <ProjectReference Include="..\Liturgy.Generators\Liturgy.Generators.csproj" ReferenceOutputAssembly="false" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" Visible="false" />
+    <None Include="..\Liturgy.Generators\bin\$(Configuration)\netstandard2.0\Liturgy.Generators.dll"
+          Pack="true"
+          PackagePath="analyzers/dotnet/cs"
+          Visible="false" />
+  </ItemGroup>
+
+</Project>

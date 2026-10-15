@@ -1,0 +1,38 @@
+
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Liturgy", "src\Liturgy\Liturgy.csproj", "{8B2E6C41-3D57-4A90-9E1F-6C0A2B7D4E11}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Liturgy.Generators", "src\Liturgy.Generators\Liturgy.Generators.csproj", "{8B2E6C41-3D57-4A90-9E1F-6C0A2B7D4E12}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sandbox", "sandbox\Sandbox.csproj", "{8B2E6C41-3D57-4A90-9E1F-6C0A2B7D4E13}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		ExportDebug|Any CPU = ExportDebug|Any CPU
+		ExportRelease|Any CPU = ExportRelease|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{8B2E6C41-3D57-4A90-9E1F-6C0A2B7D4E11}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8B2E6C41-3D57-4A90-9E1F-6C0A2B7D4E11}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8B2E6C41-3D57-4A90-9E1F-6C0A2B7D4E11}.ExportDebug|Any CPU.ActiveCfg = ExportDebug|Any CPU
+		{8B2E6C41-3D57-4A90-9E1F-6C0A2B7D4E11}.ExportDebug|Any CPU.Build.0 = ExportDebug|Any CPU
+		{8B2E6C41-3D57-4A90-9E1F-6C0A2B7D4E11}.ExportRelease|Any CPU.ActiveCfg = ExportRelease|Any CPU
+		{8B2E6C41-3D57-4A90-9E1F-6C0A2B7D4E11}.ExportRelease|Any CPU.Build.0 = ExportRelease|Any CPU
+		{8B2E6C41-3D57-4A90-9E1F-6C0A2B7D4E12}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8B2E6C41-3D57-4A90-9E1F-6C0A2B7D4E12}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8B2E6C41-3D57-4A90-9E1F-6C0A2B7D4E12}.ExportDebug|Any CPU.ActiveCfg = ExportDebug|Any CPU
+		{8B2E6C41-3D57-4A90-9E1F-6C0A2B7D4E12}.ExportDebug|Any CPU.Build.0 = ExportDebug|Any CPU
+		{8B2E6C41-3D57-4A90-9E1F-6C0A2B7D4E12}.ExportRelease|Any CPU.ActiveCfg = ExportRelease|Any CPU
+		{8B2E6C41-3D57-4A90-9E1F-6C0A2B7D4E12}.ExportRelease|Any CPU.Build.0 = ExportRelease|Any CPU
+		{8B2E6C41-3D57-4A90-9E1F-6C0A2B7D4E13}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8B2E6C41-3D57-4A90-9E1F-6C0A2B7D4E13}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8B2E6C41-3D57-4A90-9E1F-6C0A2B7D4E13}.ExportDebug|Any CPU.ActiveCfg = ExportDebug|Any CPU
+		{8B2E6C41-3D57-4A90-9E1F-6C0A2B7D4E13}.ExportDebug|Any CPU.Build.0 = ExportDebug|Any CPU
+		{8B2E6C41-3D57-4A90-9E1F-6C0A2B7D4E13}.ExportRelease|Any CPU.ActiveCfg = ExportRelease|Any CPU
+		{8B2E6C41-3D57-4A90-9E1F-6C0A2B7D4E13}.ExportRelease|Any CPU.Build.0 = ExportRelease|Any CPU
+	EndGlobalSection
+EndGlobal

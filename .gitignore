@@ -5,3 +5,5 @@ obj/
 *.user
 *.DotSettings.user
 .godot/
+*.nupkg
+*.snupkg
