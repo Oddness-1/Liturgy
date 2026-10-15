@@ -385,7 +385,7 @@ internal sealed partial class LiturgyNode
         
         if (hasDragStarted)
         {
-            slider.DragStarted += () =>
+            Listen(slider, Slider.SignalName.DragStarted, Callable.From(() =>
             {
                 if (_dragStartedTargetedCallbacks.TryGetValue(path, out var targeted))
                 {
@@ -402,12 +402,12 @@ internal sealed partial class LiturgyNode
                     if (sourceType is not null && !sourceType.IsInstanceOfType(slider)) continue;
                     callback(slider);
                 }
-            };
+            }));
         }
         
         if (hasDragEnded)
         {
-            slider.DragEnded += valueChanged =>
+            Listen(slider, Slider.SignalName.DragEnded, Callable.From((bool valueChanged) =>
             {
                 if (_dragEndedTargetedCallbacks.TryGetValue(path, out var targeted))
                 {
@@ -424,7 +424,7 @@ internal sealed partial class LiturgyNode
                     if (sourceType is not null && !sourceType.IsInstanceOfType(slider)) continue;
                     callback(valueChanged, slider);
                 }
-            };
+            }));
         }
     }
 
@@ -441,7 +441,7 @@ internal sealed partial class LiturgyNode
     
         if (hasStarted)
         {
-            scroll.ScrollStarted += () =>
+            Listen(scroll, ScrollContainer.SignalName.ScrollStarted, Callable.From(() =>
             {
                 if (_scrollStartedTargetedCallbacks.TryGetValue(path, out var targeted))
                 {
@@ -457,12 +457,12 @@ internal sealed partial class LiturgyNode
                     if (PathMatchesAnyExclude(path, excludes)) continue;
                     callback(scroll);
                 }
-            };
+            }));
         }
     
         if (hasEnded)
         {
-            scroll.ScrollEnded += () =>
+            Listen(scroll, ScrollContainer.SignalName.ScrollEnded, Callable.From(() =>
             {
                 if (_scrollEndedTargetedCallbacks.TryGetValue(path, out var targeted))
                 {
@@ -478,7 +478,7 @@ internal sealed partial class LiturgyNode
                     if (PathMatchesAnyExclude(path, excludes)) continue;
                     callback(scroll);
                 }
-            };
+            }));
         }
     }
 
@@ -491,7 +491,7 @@ internal sealed partial class LiturgyNode
         if (!hasAny) return;
     
         _subscribedContainers.Add(container);
-        container.SortChildren += () =>
+        Listen(container, Container.SignalName.SortChildren, Callable.From(() =>
         {
             if (_sortChildrenTargetedCallbacks.TryGetValue(path, out var targeted))
             {
@@ -508,7 +508,7 @@ internal sealed partial class LiturgyNode
                 if (sourceType is not null && !sourceType.IsInstanceOfType(container)) continue;
                 callback(container);
             }
-        };
+        }));
     }
 }
 

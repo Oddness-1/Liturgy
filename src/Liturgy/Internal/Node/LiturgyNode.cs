@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.Loader;
 using Godot;
 using static Liturgy.Rite;
 
@@ -68,6 +69,7 @@ internal sealed partial class LiturgyNode : Node
         InitializeDebugSetting();
 
         _root = GetTree().Root;
+        GetTree().NodeRemoved += OnNodeRemovedForListeners;
 
         // Initialize report (only when Debug is set and running from the editor)
         LiturgyReport.Reset();
@@ -117,6 +119,9 @@ internal sealed partial class LiturgyNode : Node
         
         // Misc control hooks (slider drag, scroll, container sort)
         SetupMiscControlCallbacks();
+
+        // OnSignal, the rites built on it, and rites on interface members
+        SetupSignalCallbacks();
         
         // Generate report (debug mode only)
         LiturgyReport.Generate();
@@ -158,12 +163,31 @@ internal sealed partial class LiturgyNode : Node
     private readonly record struct MethodEntry<TAttr>(MethodInfo Method, TAttr Attribute) where TAttr : Attribute;
 
     private static List<MethodInfo>? _hookMethods;
+    private static List<MethodInfo>? _interfaceHookMethods;
 
     /// <summary>
     /// Every static method in a user assembly that carries a Liturgy attribute, collected once.
-    /// Instance methods with a hook attribute are reported and skipped.
     /// </summary>
-    private static List<MethodInfo> HookMethods => _hookMethods ??= CollectHookMethods();
+    private static List<MethodInfo> HookMethods
+    {
+        get
+        {
+            if (_hookMethods is null) (_hookMethods, _interfaceHookMethods) = CollectHookMethods();
+            return _hookMethods;
+        }
+    }
+
+    /// <summary>
+    /// Every instance member of an interface that carries a Liturgy attribute. Implementing nodes run them.
+    /// </summary>
+    private static List<MethodInfo> InterfaceHookMethods
+    {
+        get
+        {
+            if (_interfaceHookMethods is null) (_hookMethods, _interfaceHookMethods) = CollectHookMethods();
+            return _interfaceHookMethods;
+        }
+    }
 
     private static List<MethodEntry<TAttr>> ScanForMethods<TAttr>() where TAttr : Attribute
     {
@@ -171,17 +195,18 @@ internal sealed partial class LiturgyNode : Node
 
         foreach (var method in HookMethods)
         {
-            if (method.GetCustomAttribute<TAttr>() is { } attribute) entries.Add(new MethodEntry<TAttr>(method, attribute));
+            foreach (var attribute in method.GetCustomAttributes<TAttr>()) entries.Add(new MethodEntry<TAttr>(method, attribute));
         }
 
         return entries;
     }
 
-    private static List<MethodInfo> CollectHookMethods()
+    private static (List<MethodInfo> Static, List<MethodInfo> Interface) CollectHookMethods()
     {
         const BindingFlags ALL_DECLARED = BindingFlags.Static | BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly;
 
         var methods = new List<MethodInfo>();
+        var interfaceMethods = new List<MethodInfo>();
 
         foreach (var type in GetUserTypes())
         {
@@ -189,17 +214,13 @@ internal sealed partial class LiturgyNode : Node
             {
                 if (!HasHookAttribute(method)) continue;
 
-                if (!method.IsStatic)
-                {
-                    GD.PushWarning($"[Liturgy] {type.FullName}.{method.Name} must be static. Skipping.");
-                    continue;
-                }
-
-                methods.Add(method);
+                if (method.IsStatic) methods.Add(method);
+                else if (type.IsInterface) interfaceMethods.Add(method);
+                else GD.PushWarning($"[Liturgy] {type.FullName}.{method.Name} must be static, or an interface member. Skipping.");
             }
         }
 
-        return methods;
+        return (methods, interfaceMethods);
     }
 
     private static bool HasHookAttribute(MethodInfo method)
@@ -214,17 +235,45 @@ internal sealed partial class LiturgyNode : Node
 
     /// <summary>
     /// Assemblies that reference Liturgy. Any assembly that declares a hook must, since the hook's attribute lives here.
+    /// Starts from what's loaded and follows references, loading any not yet loaded: a library the game references
+    /// may not load until its code first runs, which can be after Liturgy starts.
     /// </summary>
     private static IEnumerable<Assembly> GetUserAssemblies()
     {
         var liturgyName = typeof(LiturgyNode).Assembly.GetName().Name;
+        var seen = new HashSet<string>();
+        var pending = new Queue<Assembly>(AppDomain.CurrentDomain.GetAssemblies().Where(assembly => !assembly.IsDynamic && !IsFrameworkAssembly(assembly.GetName())));
 
-        foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+        while (pending.TryDequeue(out var assembly))
         {
-            if (assembly.IsDynamic) continue;
-            if (assembly.GetReferencedAssemblies().Any(reference => reference.Name == liturgyName)) yield return assembly;
+            if (!seen.Add(assembly.FullName ?? assembly.GetName().Name ?? "")) continue;
+
+            var references = assembly.GetReferencedAssemblies();
+            if (references.Any(reference => reference.Name == liturgyName)) yield return assembly;
+
+            foreach (var reference in references)
+            {
+                if (IsFrameworkAssembly(reference) || seen.Contains(reference.FullName)) continue;
+                if (LoadReference(assembly, reference) is { } loaded) pending.Enqueue(loaded);
+            }
         }
     }
+
+    private static Assembly? LoadReference(Assembly referencer, AssemblyName reference)
+    {
+        try
+        {
+            // Through the referencing assembly's load context, so the library resolves Liturgy to this same copy.
+            var context = AssemblyLoadContext.GetLoadContext(referencer) ?? AssemblyLoadContext.Default;
+            return context.LoadFromAssemblyName(reference);
+        }
+        catch (Exception) { return null; }
+    }
+
+    private static bool IsFrameworkAssembly(AssemblyName name) => name.Name is { } simple && (
+        simple.StartsWith("System", StringComparison.Ordinal) ||
+        simple.StartsWith("Microsoft", StringComparison.Ordinal) ||
+        simple is "mscorlib" or "netstandard" or "GodotSharp" or "GodotSharpEditor" or "GodotPlugins" or "GodotTools" or "Liturgy");
 
     private static IEnumerable<Type> GetUserTypes()
     {

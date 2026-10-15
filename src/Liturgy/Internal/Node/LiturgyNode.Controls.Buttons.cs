@@ -300,16 +300,16 @@ internal sealed partial class LiturgyNode
 
         var path = button.GetPath().ToString();
         if (_buttonPressedGlobalCallbacks.Count > 0 || _buttonPressedTargetedCallbacks.ContainsKey(path))
-            button.Pressed += () => OnButtonPressedSignal(button);
+            Listen(button, BaseButton.SignalName.Pressed, Callable.From(() => OnButtonPressedSignal(button)));
         
         if (_buttonUpGlobalCallbacks.Count > 0 || _buttonUpTargetedCallbacks.ContainsKey(path))
-            button.ButtonUp += () => OnButtonUpSignal(button);
+            Listen(button, BaseButton.SignalName.ButtonUp, Callable.From(() => OnButtonUpSignal(button)));
         
         if (_buttonDownGlobalCallbacks.Count > 0 || _buttonDownTargetedCallbacks.ContainsKey(path))
-            button.ButtonDown += () => OnButtonDownSignal(button);
+            Listen(button, BaseButton.SignalName.ButtonDown, Callable.From(() => OnButtonDownSignal(button)));
         
         if (_buttonToggledGlobalCallbacks.Count > 0 || _buttonToggledTargetedCallbacks.ContainsKey(path))
-            button.Toggled += pressed => OnButtonToggledSignal(pressed, button);
+            Listen(button, BaseButton.SignalName.Toggled, Callable.From((bool pressed) => OnButtonToggledSignal(pressed, button)));
     }
 
     private void OnButtonPressedSignal(BaseButton button)

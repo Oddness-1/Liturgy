@@ -554,13 +554,13 @@ internal sealed partial class LiturgyNode
         
         _subscribedControlsForFocus.Add(control);
         
-        control.FocusEntered += () => OnControlFocusEntered(control, path);
-        control.FocusExited += () => OnControlFocusExited(control, path);
-        control.MouseEntered += () => OnControlMouseEntered(control, path);
-        control.MouseExited += () => OnControlMouseExited(control, path);
-        control.Resized += () => OnControlResized(control, path);
-        control.GuiInput += e => OnControlGuiInput(e, control, path);
-        control.MinimumSizeChanged += () => OnControlMinimumSizeChanged(control, path);
+        Listen(control, Control.SignalName.FocusEntered, Callable.From(() => OnControlFocusEntered(control, path)));
+        Listen(control, Control.SignalName.FocusExited, Callable.From(() => OnControlFocusExited(control, path)));
+        Listen(control, Control.SignalName.MouseEntered, Callable.From(() => OnControlMouseEntered(control, path)));
+        Listen(control, Control.SignalName.MouseExited, Callable.From(() => OnControlMouseExited(control, path)));
+        Listen(control, Control.SignalName.Resized, Callable.From(() => OnControlResized(control, path)));
+        Listen(control, Control.SignalName.GuiInput, Callable.From((InputEvent e) => OnControlGuiInput(e, control, path)));
+        Listen(control, Control.SignalName.MinimumSizeChanged, Callable.From(() => OnControlMinimumSizeChanged(control, path)));
     }
 
     private void SubscribeCollision2DForMouse(CollisionObject2D collision)
@@ -578,8 +578,8 @@ internal sealed partial class LiturgyNode
         
         _subscribedCollision2DForMouse.Add(collision);
         
-        collision.MouseEntered += () => OnCollision2DMouseEntered(collision, path);
-        collision.MouseExited += () => OnCollision2DMouseExited(collision, path);
+        Listen(collision, CollisionObject2D.SignalName.MouseEntered, Callable.From(() => OnCollision2DMouseEntered(collision, path)));
+        Listen(collision, CollisionObject2D.SignalName.MouseExited, Callable.From(() => OnCollision2DMouseExited(collision, path)));
     }
 
     private void SubscribeCollision3DForMouse(CollisionObject3D collision)
@@ -597,8 +597,8 @@ internal sealed partial class LiturgyNode
         
         _subscribedCollision3DForMouse.Add(collision);
         
-        collision.MouseEntered += () => OnCollision3DMouseEntered(collision, path);
-        collision.MouseExited += () => OnCollision3DMouseExited(collision, path);
+        Listen(collision, CollisionObject3D.SignalName.MouseEntered, Callable.From(() => OnCollision3DMouseEntered(collision, path)));
+        Listen(collision, CollisionObject3D.SignalName.MouseExited, Callable.From(() => OnCollision3DMouseExited(collision, path)));
     }
 
     private void OnControlFocusEntered(Control control, string path)

@@ -231,8 +231,8 @@ internal sealed partial class LiturgyNode
         
         _subscribedAnimationPlayers.Add(player);
         
-        player.AnimationFinished += animName => OnAnimationFinished(player, path, animName);
-        player.AnimationStarted += animName => OnAnimationStarted(player, path, animName);
+        Listen(player, AnimationPlayer.SignalName.AnimationFinished, Callable.From((StringName animName) => OnAnimationFinished(player, path, animName)));
+        Listen(player, AnimationPlayer.SignalName.AnimationStarted, Callable.From((StringName animName) => OnAnimationStarted(player, path, animName)));
     }
 
     private void OnAnimationFinished(AnimationPlayer player, string path, StringName animName)

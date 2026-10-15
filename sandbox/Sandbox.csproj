@@ -14,4 +14,10 @@
     <ProjectReference Include="..\src\Liturgy.Generators\Liturgy.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
+  <!-- A second Liturgy-using assembly, for the late-load check in Checks/. It builds on its own, so its sources stay out of this project. -->
+  <ItemGroup>
+    <Compile Remove="Library/**" />
+    <ProjectReference Include="Library\SandboxLibrary.csproj" />
+  </ItemGroup>
+
 </Project>

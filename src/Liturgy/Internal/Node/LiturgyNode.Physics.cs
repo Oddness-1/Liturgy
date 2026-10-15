@@ -400,10 +400,10 @@ internal sealed partial class LiturgyNode
         if (!hasAny) return;
         
         _subscribedArea2Ds.Add(area);
-        area.BodyEntered += body => FireBodyEntered2D(area, path, body);
-        area.BodyExited += body => FireBodyExited2D(area, path, body);
-        area.AreaEntered += entering => FireAreaEntered2D(area, path, entering);
-        area.AreaExited += exiting => FireAreaExited2D(area, path, exiting);
+        Listen(area, Area2D.SignalName.BodyEntered, Callable.From((Node2D body) => FireBodyEntered2D(area, path, body)));
+        Listen(area, Area2D.SignalName.BodyExited, Callable.From((Node2D body) => FireBodyExited2D(area, path, body)));
+        Listen(area, Area2D.SignalName.AreaEntered, Callable.From((Area2D entering) => FireAreaEntered2D(area, path, entering)));
+        Listen(area, Area2D.SignalName.AreaExited, Callable.From((Area2D exiting) => FireAreaExited2D(area, path, exiting)));
     }
 
     private void SubscribeArea3D(Area3D area)
@@ -417,10 +417,10 @@ internal sealed partial class LiturgyNode
         if (!hasAny) return;
         
         _subscribedArea3Ds.Add(area);
-        area.BodyEntered += body => FireBodyEntered3D(area, path, body);
-        area.BodyExited += body => FireBodyExited3D(area, path, body);
-        area.AreaEntered += entering => FireAreaEntered3D(area, path, entering);
-        area.AreaExited += exiting => FireAreaExited3D(area, path, exiting);
+        Listen(area, Area3D.SignalName.BodyEntered, Callable.From((Node3D body) => FireBodyEntered3D(area, path, body)));
+        Listen(area, Area3D.SignalName.BodyExited, Callable.From((Node3D body) => FireBodyExited3D(area, path, body)));
+        Listen(area, Area3D.SignalName.AreaEntered, Callable.From((Area3D entering) => FireAreaEntered3D(area, path, entering)));
+        Listen(area, Area3D.SignalName.AreaExited, Callable.From((Area3D exiting) => FireAreaExited3D(area, path, exiting)));
     }
 
     private void FireBodyEntered2D(Area2D src, string path, Node2D body)

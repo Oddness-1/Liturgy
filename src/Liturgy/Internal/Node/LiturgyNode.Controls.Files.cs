@@ -134,8 +134,8 @@ internal sealed partial class LiturgyNode
         var hasFileSelected = _fileSelectedGlobalCallbacks.Count > 0 || _fileSelectedTargetedCallbacks.ContainsKey(path);
         var hasDirSelected = _dirSelectedGlobalCallbacks.Count > 0 || _dirSelectedTargetedCallbacks.ContainsKey(path);
         
-        if (hasFileSelected) fileDialog.FileSelected += filePath => OnFileDialogFileSelected(filePath, fileDialog, path);
-        if (hasDirSelected) fileDialog.DirSelected += dirPath => OnFileDialogDirSelected(dirPath, fileDialog, path);
+        if (hasFileSelected) Listen(fileDialog, FileDialog.SignalName.FileSelected, Callable.From((string filePath) => OnFileDialogFileSelected(filePath, fileDialog, path)));
+        if (hasDirSelected) Listen(fileDialog, FileDialog.SignalName.DirSelected, Callable.From((string dirPath) => OnFileDialogDirSelected(dirPath, fileDialog, path)));
     }
     
     private void OnFileDialogFileSelected(string filePath, FileDialog source, string path)

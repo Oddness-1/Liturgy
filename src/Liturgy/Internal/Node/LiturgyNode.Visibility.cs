@@ -163,7 +163,7 @@ internal sealed partial class LiturgyNode
         if (!hasTargeted && !hasGlobal) return;
         
         _subscribedCanvasItemsForVisibility.Add(canvasItem);
-        canvasItem.VisibilityChanged += () => OnCanvasItemVisibilityChanged(canvasItem, path);
+        Listen(canvasItem, CanvasItem.SignalName.VisibilityChanged, Callable.From(() => OnCanvasItemVisibilityChanged(canvasItem, path)));
     }
 
     private void SubscribeNode3DForVisibility(Node3D node3D)
@@ -178,7 +178,7 @@ internal sealed partial class LiturgyNode
         if (!hasTargeted && !hasGlobal) return;
         
         _subscribedNode3DsForVisibility.Add(node3D);
-        node3D.VisibilityChanged += () => OnNode3DVisibilityChanged(node3D, path);
+        Listen(node3D, Node3D.SignalName.VisibilityChanged, Callable.From(() => OnNode3DVisibilityChanged(node3D, path)));
     }
 
     private void OnCanvasItemVisibilityChanged(CanvasItem canvasItem, string path)

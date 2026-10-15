@@ -71,9 +71,9 @@ internal sealed partial class LiturgyNode
             case 1:
             {
                 var paramType = parameters[0].ParameterType;
-                if (!typeof(Node).IsAssignableFrom(paramType))
+                if (!typeof(Node).IsAssignableFrom(paramType) && !paramType.IsInterface)
                 {
-                    LiturgyReport.AddInvalidParameterError(methodName, attrName, parameters[0].Name ?? "parameters[0]", paramType, "Node (or derived type)");
+                    LiturgyReport.AddInvalidParameterError(methodName, attrName, parameters[0].Name ?? "parameters[0]", paramType, "Node (or derived type), or an interface nodes implement");
                     return false;
                 }
                 nodeType = paramType;

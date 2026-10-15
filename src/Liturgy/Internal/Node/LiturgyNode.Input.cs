@@ -101,6 +101,8 @@ internal sealed partial class LiturgyNode
         {
             callback(@event);
         }
+
+        DispatchInterfaceInput(_interfaceInput, @event);
     }
 
     public override void _UnhandledInput(InputEvent @event)
@@ -109,6 +111,8 @@ internal sealed partial class LiturgyNode
         {
             callback(@event);
         }
+
+        DispatchInterfaceInput(_interfaceUnhandledInput, @event);
     }
 
     public override void _UnhandledKeyInput(InputEvent @event)
@@ -117,5 +121,7 @@ internal sealed partial class LiturgyNode
         {
             callback(@event);
         }
+
+        DispatchInterfaceInput(_interfaceUnhandledKeyInput, @event);
     }
 }

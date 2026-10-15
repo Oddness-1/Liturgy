@@ -54,7 +54,7 @@ internal static class DelegateFactory
         }
     }
     
-    private static Action<TBase> BuildWrapper1<TBase, TActual>(MethodInfo method) where TBase : class where TActual : class, TBase
+    private static Action<TBase> BuildWrapper1<TBase, TActual>(MethodInfo method) where TBase : class where TActual : class
     {
         var del = (Action<TActual>)Delegate.CreateDelegate(typeof(Action<TActual>), method);
         return arg =>
@@ -136,7 +136,7 @@ internal static class DelegateFactory
         }
     }
     
-    private static Action<TSignal, TBase> BuildWrapper2_SignalFirst<TSignal, TBase, TActual>(MethodInfo method) where TBase : class where TActual : class, TBase
+    private static Action<TSignal, TBase> BuildWrapper2_SignalFirst<TSignal, TBase, TActual>(MethodInfo method) where TBase : class where TActual : class
     {
         var del = (Action<TSignal, TActual>)Delegate.CreateDelegate(typeof(Action<TSignal, TActual>), method);
         return (signal, node) =>
@@ -145,7 +145,7 @@ internal static class DelegateFactory
         };
     }
     
-    private static Action<TSignal, TBase> BuildWrapper2_NodeFirst<TSignal, TBase, TActual>(MethodInfo method) where TBase : class where TActual : class, TBase
+    private static Action<TSignal, TBase> BuildWrapper2_NodeFirst<TSignal, TBase, TActual>(MethodInfo method) where TBase : class where TActual : class
     {
         var del = (Action<TActual, TSignal>)Delegate.CreateDelegate(typeof(Action<TActual, TSignal>), method);
         return (signal, node) =>

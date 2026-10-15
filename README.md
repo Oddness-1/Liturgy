@@ -72,7 +72,8 @@ Godot first runs your C#, it either registers a `Liturgy` autoload in memory (no
 or adds the `Liturgy` node to `/root` directly. Either way Liturgy is ready before the main scene, like an autoload
 you never have to configure. In the editor it does nothing.
 
-Only assemblies that reference Liturgy are scanned for hooks, so large dependencies cost nothing at startup.
+Only assemblies that reference Liturgy are scanned for hooks, so large dependencies cost nothing at startup. A
+library of rites that your game references is found even if .NET hasn't loaded it yet when Liturgy starts.
 
 ## Table of Contents
 
@@ -93,12 +94,15 @@ Only assemblies that reference Liturgy are scanned for hooks, so large dependenc
 - [Audio](#audio)
 - [Timers](#timers)
 - [Popups & Dialogs](#popups--dialogs)
+- [Any Signal](#any-signal)
+- [Interface Rites](#interface-rites)
 - [Filtering & Targeting](#filtering--targeting)
 - [Modes](#modes)
 - [Parameter Flexibility](#parameter-flexibility)
 - [Modifying the Scene Tree](#modifying-the-scene-tree)
 - [Debug Mode](#debug-mode)
 - [Performance Notes](#performance-notes)
+- [Compile-Time Checks](#compile-time-checks)
 - [Rider and ReSharper](#rider-and-resharper)
 - [Suppressing Warnings](#suppressing-warnings)
 - [Building from Source](#building-from-source)
@@ -474,6 +478,94 @@ private static void OnConfirm(AcceptDialog dialog)
 
 ---
 
+## Any Signal
+
+`[Rite.OnSignal("name")]` hooks a signal on every node in the tree that has it, your own `[Signal]` delegates included.
+It covers every signal the dedicated rites don't.
+
+Parameters are optional. The first may be the source node (any node type or interface), which also filters which
+nodes count. The rest are the signal's arguments: all of them or none, converted to the types you declare. An object
+argument whose value isn't of the declared type skips the call.
+
+```csharp
+// Source node, which also filters to Timers
+[Rite.OnSignal("timeout")]
+private static void AnyTimeout(Timer timer) { }
+
+// Source and arguments
+[Rite.OnSignal("value_changed", Target = "UI/Volume")]
+private static void VolumeChanged(Range slider, double value) { }
+
+// Your own signal; nameof keeps the name in step with the delegate
+[Rite.OnSignal(nameof(Player.SignalName.Died))]
+private static void PlayerDied(Player player) { }
+
+// Arguments only, filtered by the argument's type
+[Rite.OnSignal("body_entered")]
+private static void PlayerEntered(Player body) { }
+```
+
+When the signal has exactly one argument and the method one parameter, that parameter is the argument, unless it's a
+node type and the argument isn't an object. Take both `(source, argument)` to be explicit. Signals with up to nine
+arguments are supported. Signals on objects outside the tree (a Tween, a Resource, the SceneTree itself) aren't reached.
+
+These rites are shorthand built on it:
+
+| Attribute | When it fires | Controls |
+|-----------|---------------|----------|
+| `[Rite.OnIdPressed]` | Menu item chosen | PopupMenu, MenuButton (its popup) |
+| `[Rite.OnMetaClicked]` | Meta tag (`[url]`) clicked | RichTextLabel |
+| `[Rite.OnScreenEntered]` | Enters the screen | VisibleOnScreenNotifier2D, VisibleOnScreenNotifier3D |
+| `[Rite.OnScreenExited]` | Leaves the screen | VisibleOnScreenNotifier2D, VisibleOnScreenNotifier3D |
+
+```csharp
+[Rite.OnIdPressed]
+private static void MenuItemPressed(MenuButton menu, int id) { }
+
+[Rite.OnMetaClicked]
+private static void LinkClicked(RichTextLabel label, string meta) => OS.ShellOpen(meta);
+```
+
+---
+
+## Interface Rites
+
+Put a rite on an interface member, and every node that implements the interface runs its own implementation (or the
+interface's default body) on its own signals and lifecycle.
+
+```csharp
+public interface IHoverable
+{
+    [Rite.OnMouseEntered] void HoverStart();
+    [Rite.OnMouseExited] void HoverEnd() { }  // default body: implementers may skip it
+}
+
+public interface ITicking
+{
+    [Rite.OnProcess] void Tick(double delta);
+}
+
+public partial class Card : Control, IHoverable
+{
+    public void HoverStart() => Modulate = Colors.Gold;  // runs when this card's mouse_entered fires
+}
+```
+
+- **Signal rites** (the dedicated ones and `OnSignal`) fire when the node itself emits the signal. Parameters are the
+  signal's arguments, all or none; the node is `this`. `OnIdPressed` on a MenuButton listens to its popup.
+- **`OnReady`** runs once per node, when it's ready.
+- **`OnProcess` / `OnPhysicsProcess`** run per node every frame, with the delta. They turn processing on for the node,
+  as overriding `_Process` would, and stop while the node can't process (paused).
+- **`OnInput` / `OnUnhandledInput` / `OnUnhandledKeyInput`** pass the event to each implementing node in the tree,
+  filtered by the event type you declare.
+- `Exclude` and `Priority` work; `Target` is ignored, since the rite belongs to every implementer. `Mode` doesn't apply.
+- `OnNodeAdded`, `OnNodeRemoved` and `OnTreeChanged` aren't supported on interfaces; declare them static.
+- Generic interfaces work: each implementation runs with its own type arguments.
+
+A node that implements the interface but lacks the signal (an `IHoverable` that isn't a Control) is reported once.
+
+---
+
 ## Filtering & Targeting
 
 By default, hooks fire for **all** matching nodes. You can narrow scope:
@@ -662,6 +754,23 @@ private static void EachEnemy(Enemy e) { }
 
 ---
 
+## Compile-Time Checks
+
+The package's analyzer flags rites that can never run, as you type:
+
+| ID | Severity | Problem |
+|----|----------|---------|
+| LIT001 | Error | Rite on an instance method that isn't an interface member |
+| LIT002 | Error | Parameters don't fit the rite (or, for `OnSignal` on a known signal, the signal's arguments) |
+| LIT003 | Error | Rite that isn't supported on interface members |
+| LIT004 | Warning | `Target` on an interface rite, where it's ignored |
+| LIT005 | Error | `OnSignal` without a signal name |
+
+`OnSignal` is checked against engine signals and your own `[Signal]` delegates when the source parameter's type
+declares the signal; otherwise it's checked at runtime and reported in the debug report.
+
+---
+
 ## Rider and ReSharper
 
 Every hook attribute is marked as an implicit use, so methods and fields that carry one are never reported as unused.
@@ -685,6 +794,14 @@ private static void UpdateAllNodes(double delta, Node node) { }
 
 Open `Liturgy.sln`. It holds the library (`src/Liturgy`), the source generator (`src/Liturgy.Generators`) and
 `sandbox/`, a Godot project whose test bed exercises every hook category (open `sandbox/project.godot` and run it).
+
+`sandbox/Checks/Checks.tscn` runs automated checks for `OnSignal`, interface rites, reparenting, pausing and a rite
+library loaded late (`sandbox/Library`). Run that scene; it prints each check, ends with `ALL PASSED`, and exits with
+code 1 on a failure, so it also runs headless:
+
+```
+godot --headless --path sandbox res://Checks/Checks.tscn
+```
 
 Pack with:
 

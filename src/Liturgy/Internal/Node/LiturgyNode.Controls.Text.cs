@@ -199,8 +199,8 @@ internal sealed partial class LiturgyNode
         var hasTextChanged = _textChangedLineEditGlobalCallbacks.Count > 0 || _textChangedLineEditTargetedCallbacks.ContainsKey(path);
         var hasTextSubmitted = _textSubmittedGlobalCallbacks.Count > 0 || _textSubmittedTargetedCallbacks.ContainsKey(path);
         
-        if (hasTextChanged) lineEdit.TextChanged += text => OnLineEditTextChanged(text, lineEdit, path);
-        if (hasTextSubmitted) lineEdit.TextSubmitted += text => OnLineEditTextSubmitted(text, lineEdit, path);
+        if (hasTextChanged) Listen(lineEdit, LineEdit.SignalName.TextChanged, Callable.From((string text) => OnLineEditTextChanged(text, lineEdit, path)));
+        if (hasTextSubmitted) Listen(lineEdit, LineEdit.SignalName.TextSubmitted, Callable.From((string text) => OnLineEditTextSubmitted(text, lineEdit, path)));
     }
     
     private void SubscribeTextEdit(TextEdit textEdit, string path)
@@ -209,7 +209,7 @@ internal sealed partial class LiturgyNode
         
         var hasTextChanged = _textChangedTextEditGlobalCallbacks.Count > 0 || _textChangedTextEditTargetedCallbacks.ContainsKey(path);
         
-        if (hasTextChanged) textEdit.TextChanged += () => OnTextEditTextChanged(textEdit, path);
+        if (hasTextChanged) Listen(textEdit, TextEdit.SignalName.TextChanged, Callable.From(() => OnTextEditTextChanged(textEdit, path)));
     }
     
     private void OnLineEditTextChanged(string text, LineEdit source, string path)

@@ -249,7 +249,7 @@ internal sealed partial class LiturgyNode
                 }
                 deltaParamIndex = i;
             }
-            else if (typeof(Node).IsAssignableFrom(param.ParameterType))
+            else if (typeof(Node).IsAssignableFrom(param.ParameterType) || param.ParameterType.IsInterface)
             {
                 if (nodeParamIndex is not null)
                 {
@@ -261,7 +261,7 @@ internal sealed partial class LiturgyNode
             }
             else
             {
-                LiturgyReport.AddInvalidParameterError(methodName, "OnProcess/OnPhysicsProcess", param.Name ?? "param", param.ParameterType, "double (delta) and/or Node (or derived type)");
+                LiturgyReport.AddInvalidParameterError(methodName, "OnProcess/OnPhysicsProcess", param.Name ?? "param", param.ParameterType, "double (delta) and/or Node (or derived type, or an interface nodes implement)");
                 return false;
             }
         }
@@ -503,8 +503,18 @@ internal sealed partial class LiturgyNode
         LiturgyReport.IncrementProcessHooks();
         LiturgyReport.AddProcessHookAttachment(node.GetType().Name, path, needsProcess, needsPhysicsProcess);
 
-        if (needsProcess) hook.Processed += (delta, target) => OnProcessHookFired(delta, target, _processTargetedEntries);
-        if (needsPhysicsProcess) hook.PhysicsProcessed += (delta, target) => OnProcessHookFired(delta, target, _physicsProcessTargetedEntries);
+        // The hook stays with its node through reparenting, and entries match against the current path each frame, so subscribe once.
+        if (needsProcess && !hook.ProcessRitesAttached)
+        {
+            hook.ProcessRitesAttached = true;
+            hook.Processed += (delta, target) => OnProcessHookFired(delta, target, _processTargetedEntries);
+        }
+
+        if (needsPhysicsProcess && !hook.PhysicsProcessRitesAttached)
+        {
+            hook.PhysicsProcessRitesAttached = true;
+            hook.PhysicsProcessed += (delta, target) => OnProcessHookFired(delta, target, _physicsProcessTargetedEntries);
+        }
     }
     
     private void TrackEntryMatch(ProcessCallbackEntry entry, Dictionary<ProcessCallbackEntry, int>? matchCounts)

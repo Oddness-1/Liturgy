@@ -81,7 +81,7 @@ internal sealed partial class LiturgyNode
         
         if (hasColorChanged)
         {
-            colorPicker.ColorChanged += color => OnColorPickerColorChanged(color, colorPicker, path);
+            Listen(colorPicker, ColorPicker.SignalName.ColorChanged, Callable.From((Color color) => OnColorPickerColorChanged(color, colorPicker, path)));
         }
     }
     
@@ -93,7 +93,7 @@ internal sealed partial class LiturgyNode
         
         if (hasColorChanged)
         {
-            colorPickerButton.ColorChanged += color => OnColorPickerButtonColorChanged(color, colorPickerButton, path);
+            Listen(colorPickerButton, ColorPickerButton.SignalName.ColorChanged, Callable.From((Color color) => OnColorPickerButtonColorChanged(color, colorPickerButton, path)));
         }
     }
     

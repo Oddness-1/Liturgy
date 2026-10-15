@@ -402,7 +402,7 @@ internal sealed partial class LiturgyNode
     {
         if (!_subscribedOptionButtons.Add(optionButton)) return;
         var hasItemSelected = _itemSelectedGlobalCallbacks.Count > 0 || _itemSelectedTargetedCallbacks.ContainsKey(path);
-        if (hasItemSelected) optionButton.ItemSelected += index => OnOptionButtonItemSelected((int)index, optionButton, path);
+        if (hasItemSelected) Listen(optionButton, OptionButton.SignalName.ItemSelected, Callable.From((long index) => OnOptionButtonItemSelected((int)index, optionButton, path)));
     }
     
     private void SubscribeItemList(ItemList itemList, string path)
@@ -412,22 +412,22 @@ internal sealed partial class LiturgyNode
         var hasItemSelected = _itemSelectedGlobalCallbacks.Count > 0 || _itemSelectedTargetedCallbacks.ContainsKey(path);
         var hasItemActivated = _itemActivatedGlobalCallbacks.Count > 0 || _itemActivatedTargetedCallbacks.ContainsKey(path);
         
-        if (hasItemSelected) itemList.ItemSelected += index => OnItemListItemSelected((int)index, itemList, path);
-        if (hasItemActivated) itemList.ItemActivated += index => OnItemListItemActivated((int)index, itemList, path);
+        if (hasItemSelected) Listen(itemList, ItemList.SignalName.ItemSelected, Callable.From((long index) => OnItemListItemSelected((int)index, itemList, path)));
+        if (hasItemActivated) Listen(itemList, ItemList.SignalName.ItemActivated, Callable.From((long index) => OnItemListItemActivated((int)index, itemList, path)));
     }
     
     private void SubscribeTabContainer(TabContainer tabContainer, string path)
     {
         if (!_subscribedTabContainers.Add(tabContainer)) return;
         var hasTabChanged = _tabChangedGlobalCallbacks.Count > 0 || _tabChangedTargetedCallbacks.ContainsKey(path);
-        if (hasTabChanged) tabContainer.TabChanged += index => OnTabContainerTabChanged((int)index, tabContainer, path);
+        if (hasTabChanged) Listen(tabContainer, TabContainer.SignalName.TabChanged, Callable.From((long index) => OnTabContainerTabChanged((int)index, tabContainer, path)));
     }
     
     private void SubscribeTabBar(TabBar tabBar, string path)
     {
         if (!_subscribedTabBars.Add(tabBar)) return;
         var hasTabChanged = _tabChangedGlobalCallbacks.Count > 0 || _tabChangedTargetedCallbacks.ContainsKey(path);
-        if (hasTabChanged) tabBar.TabChanged += index => OnTabBarTabChanged((int)index, tabBar, path);
+        if (hasTabChanged) Listen(tabBar, TabBar.SignalName.TabChanged, Callable.From((long index) => OnTabBarTabChanged((int)index, tabBar, path)));
     }
     
     private void OnItemListItemSelected(int index, ItemList source, string path)

@@ -93,7 +93,7 @@ internal sealed partial class LiturgyNode
         if (!hasAny) return;
     
         _subscribedTimers.Add(timer);
-        timer.Timeout += () =>
+        Listen(timer, Timer.SignalName.Timeout, Callable.From(() =>
         {
             if (_timeoutTargetedCallbacks.TryGetValue(path, out var targeted))
             {
@@ -109,7 +109,7 @@ internal sealed partial class LiturgyNode
                 if (PathMatchesAnyExclude(path, excludes)) continue;
                 callback(timer);
             }
-        };
+        }));
     }
 }
 

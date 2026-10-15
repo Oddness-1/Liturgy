@@ -1,5 +1,6 @@
 using System;
 using System.Reflection;
+using Godot;
 using Range = Godot.Range;
 using static Liturgy.Rite;
 
@@ -82,7 +83,7 @@ internal sealed partial class LiturgyNode
         
         var hasValueChanged = _valueChangedGlobalCallbacks.Count > 0 || _valueChangedTargetedCallbacks.ContainsKey(path);
         
-        if (hasValueChanged) range.ValueChanged += value => OnRangeValueChanged(value, range, path);
+        if (hasValueChanged) Listen(range, Range.SignalName.ValueChanged, Callable.From((double value) => OnRangeValueChanged(value, range, path)));
     }
     
     private void OnRangeValueChanged(double value, Range source, string path)

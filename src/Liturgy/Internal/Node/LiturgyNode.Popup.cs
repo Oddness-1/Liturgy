@@ -273,7 +273,7 @@ internal sealed partial class LiturgyNode
         if (!hasAny) return;
         
         _subscribedPopups.Add(popup);
-        popup.PopupHide += () =>
+        Listen(popup, Popup.SignalName.PopupHide, Callable.From(() =>
         {
             if (_popupHideTargetedCallbacks.TryGetValue(path, out var targeted))
             {
@@ -290,7 +290,7 @@ internal sealed partial class LiturgyNode
                 if (sourceType is not null && !sourceType.IsInstanceOfType(popup)) continue;
                 callback(popup);
             }
-        };
+        }));
     }
 
     private void SubscribeWindowForClose(Window window)
@@ -302,7 +302,7 @@ internal sealed partial class LiturgyNode
         if (!hasAny) return;
         
         _subscribedWindowsForClose.Add(window);
-        window.CloseRequested += () =>
+        Listen(window, Window.SignalName.CloseRequested, Callable.From(() =>
         {
             if (_closeRequestedTargetedCallbacks.TryGetValue(path, out var targeted))
             {
@@ -319,7 +319,7 @@ internal sealed partial class LiturgyNode
                 if (sourceType is not null && !sourceType.IsInstanceOfType(window)) continue;
                 callback(window);
             }
-        };
+        }));
     }
 
     private void SubscribeDialog(AcceptDialog dialog)
@@ -335,7 +335,7 @@ internal sealed partial class LiturgyNode
         
         if (hasConfirmed)
         {
-            dialog.Confirmed += () =>
+            Listen(dialog, AcceptDialog.SignalName.Confirmed, Callable.From(() =>
             {
                 if (_confirmedTargetedCallbacks.TryGetValue(path, out var targeted))
                 {
@@ -352,12 +352,12 @@ internal sealed partial class LiturgyNode
                     if (sourceType is not null && !sourceType.IsInstanceOfType(dialog)) continue;
                     callback(dialog);
                 }
-            };
+            }));
         }
         
         if (hasCanceled)
         {
-            dialog.Canceled += () =>
+            Listen(dialog, AcceptDialog.SignalName.Canceled, Callable.From(() =>
             {
                 if (_canceledTargetedCallbacks.TryGetValue(path, out var targeted))
                 {
@@ -374,7 +374,7 @@ internal sealed partial class LiturgyNode
                     if (sourceType is not null && !sourceType.IsInstanceOfType(dialog)) continue;
                     callback(dialog);
                 }
-            };
+            }));
         }
     }
 }

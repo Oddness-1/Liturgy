@@ -162,7 +162,7 @@ internal sealed partial class LiturgyNode
         if (!hasAny) return;
         
         _subscribedAudioPlayers.Add(player);
-        player.Finished += () =>
+        Listen(player, AudioStreamPlayer.SignalName.Finished, Callable.From(() =>
         {
             if (_audioFinishedTargetedCallbacks.TryGetValue(path, out var targeted))
             {
@@ -178,7 +178,7 @@ internal sealed partial class LiturgyNode
                 if (PathMatchesAnyExclude(path, excludes)) continue;
                 callback(player);
             }
-        };
+        }));
     }
 
     private void SubscribeAudioPlayer2D(AudioStreamPlayer2D player)
@@ -190,7 +190,7 @@ internal sealed partial class LiturgyNode
         if (!hasAny) return;
         
         _subscribedAudioPlayers2D.Add(player);
-        player.Finished += () =>
+        Listen(player, AudioStreamPlayer2D.SignalName.Finished, Callable.From(() =>
         {
             if (_audio2DFinishedTargetedCallbacks.TryGetValue(path, out var targeted))
             {
@@ -206,7 +206,7 @@ internal sealed partial class LiturgyNode
                 if (PathMatchesAnyExclude(path, excludes)) continue;
                 callback(player);
             }
-        };
+        }));
     }
 
     private void SubscribeAudioPlayer3D(AudioStreamPlayer3D player)
@@ -218,7 +218,7 @@ internal sealed partial class LiturgyNode
         if (!hasAny) return;
         
         _subscribedAudioPlayers3D.Add(player);
-        player.Finished += () =>
+        Listen(player, AudioStreamPlayer3D.SignalName.Finished, Callable.From(() =>
         {
             if (_audio3DFinishedTargetedCallbacks.TryGetValue(path, out var targeted))
             {
@@ -234,7 +234,7 @@ internal sealed partial class LiturgyNode
                 if (PathMatchesAnyExclude(path, excludes)) continue;
                 callback(player);
             }
-        };
+        }));
     }
 }
 
