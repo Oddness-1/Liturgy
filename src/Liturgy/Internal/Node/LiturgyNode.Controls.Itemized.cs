@@ -92,7 +92,7 @@ internal sealed partial class LiturgyNode
         
         if (parameters.Length == 1 && intIdx is not null)
         {
-            var del = (Action<long>)Delegate.CreateDelegate(typeof(Action<long>), method);
+            var del = (Action<long>)RiteProbe.Create(typeof(Action<long>), method);
             return ((index, _) => del(index), null);
         }
         
@@ -105,7 +105,7 @@ internal sealed partial class LiturgyNode
             if (intIdx < sourceIdx)
             {
                 var delegateType = typeof(Action<,>).MakeGenericType(typeof(long), sourceType!);
-                var typedDelegate = Delegate.CreateDelegate(delegateType, method);
+                var typedDelegate = RiteProbe.Create(delegateType, method);
                 
                 // Use MakeGenericMethod approach for the wrapper
                 var wrapperMethod = typeof(LiturgyNode)
@@ -116,7 +116,7 @@ internal sealed partial class LiturgyNode
             else
             {
                 var delegateType = typeof(Action<,>).MakeGenericType(sourceType!, typeof(long));
-                var typedDelegate = Delegate.CreateDelegate(delegateType, method);
+                var typedDelegate = RiteProbe.Create(delegateType, method);
                 
                 var wrapperMethod = typeof(LiturgyNode)
                     .GetMethod(nameof(BuildItemSelectedLongWrapper_NodeFirst), BindingFlags.NonPublic | BindingFlags.Static)!
@@ -205,7 +205,7 @@ internal sealed partial class LiturgyNode
         
         if (parameters.Length == 0)
         {
-            var del = (Action)Delegate.CreateDelegate(typeof(Action), method);
+            var del = (Action)RiteProbe.Create(typeof(Action), method);
             return (_, _) => del();
         }
         
@@ -213,19 +213,19 @@ internal sealed partial class LiturgyNode
         {
             if (usesLong)
             {
-                var del = (Action<long>)Delegate.CreateDelegate(typeof(Action<long>), method);
+                var del = (Action<long>)RiteProbe.Create(typeof(Action<long>), method);
                 return (index, _) => del(index);
             }
             else
             {
-                var del = (Action<int>)Delegate.CreateDelegate(typeof(Action<int>), method);
+                var del = (Action<int>)RiteProbe.Create(typeof(Action<int>), method);
                 return (index, _) => del(index);
             }
         }
         
         if (intIdx is null && sourceIdx is not null)
         {
-            var del = (Action<ItemList>)Delegate.CreateDelegate(typeof(Action<ItemList>), method);
+            var del = (Action<ItemList>)RiteProbe.Create(typeof(Action<ItemList>), method);
             return (_, source) => del(source);
         }
         
@@ -235,12 +235,12 @@ internal sealed partial class LiturgyNode
             {
                 if (intIdx < sourceIdx)
                 {
-                    var del = (Action<long, ItemList>)Delegate.CreateDelegate(typeof(Action<long, ItemList>), method);
+                    var del = (Action<long, ItemList>)RiteProbe.Create(typeof(Action<long, ItemList>), method);
                     return (index, source) => del(index, source);
                 }
                 else
                 {
-                    var del = (Action<ItemList, long>)Delegate.CreateDelegate(typeof(Action<ItemList, long>), method);
+                    var del = (Action<ItemList, long>)RiteProbe.Create(typeof(Action<ItemList, long>), method);
                     return (index, source) => del(source, index);
                 }
             }
@@ -248,12 +248,12 @@ internal sealed partial class LiturgyNode
             {
                 if (intIdx < sourceIdx)
                 {
-                    var del = (Action<int, ItemList>)Delegate.CreateDelegate(typeof(Action<int, ItemList>), method);
+                    var del = (Action<int, ItemList>)RiteProbe.Create(typeof(Action<int, ItemList>), method);
                     return del;
                 }
                 else
                 {
-                    var del = (Action<ItemList, int>)Delegate.CreateDelegate(typeof(Action<ItemList, int>), method);
+                    var del = (Action<ItemList, int>)RiteProbe.Create(typeof(Action<ItemList, int>), method);
                     return (index, source) => del(source, index);
                 }
             }
@@ -347,7 +347,7 @@ internal sealed partial class LiturgyNode
         
         if (parameters.Length == 1 && intIdx is not null)
         {
-            var del = (Action<long>)Delegate.CreateDelegate(typeof(Action<long>), method);
+            var del = (Action<long>)RiteProbe.Create(typeof(Action<long>), method);
             return ((index, _) => del(index), null);
         }
 
@@ -356,7 +356,7 @@ internal sealed partial class LiturgyNode
         if (intIdx < sourceIdx)
         {
             var delegateType = typeof(Action<,>).MakeGenericType(typeof(long), sourceType!);
-            var typedDelegate = Delegate.CreateDelegate(delegateType, method);
+            var typedDelegate = RiteProbe.Create(delegateType, method);
                 
             var wrapperMethod = typeof(LiturgyNode)
                 .GetMethod(nameof(BuildTabChangedLongWrapper_SignalFirst), BindingFlags.NonPublic | BindingFlags.Static)!
@@ -367,7 +367,7 @@ internal sealed partial class LiturgyNode
         else
         {
             var delegateType = typeof(Action<,>).MakeGenericType(sourceType!, typeof(long));
-            var typedDelegate = Delegate.CreateDelegate(delegateType, method);
+            var typedDelegate = RiteProbe.Create(delegateType, method);
                 
             var wrapperMethod = typeof(LiturgyNode)
                 .GetMethod(nameof(BuildTabChangedLongWrapper_NodeFirst), BindingFlags.NonPublic | BindingFlags.Static)!

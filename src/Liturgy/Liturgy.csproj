@@ -28,7 +28,13 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- The harness shows the sections a project hasn't seen yet when Liturgy updates. -->
+    <EmbeddedResource Include="..\..\CHANGELOG.md" LogicalName="Liturgy.CHANGELOG.md" Visible="false" />
+  </ItemGroup>
+
+  <ItemGroup>
     <None Include="..\..\README.md" Pack="true" PackagePath="\" Visible="false" />
+    <None Include="..\..\CHANGELOG.md" Pack="true" PackagePath="\" Visible="false" />
     <None Include="..\Liturgy.Generators\bin\$(Configuration)\netstandard2.0\Liturgy.Generators.dll"
           Pack="true"
           PackagePath="analyzers/dotnet/cs"

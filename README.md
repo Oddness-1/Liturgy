@@ -46,7 +46,7 @@ No manual wiring. No base classes. No forgetting to connect signals. It just wor
 Add the package to your game's `.csproj`:
 
 ```xml
-<PackageReference Include="Liturgy.Godot" Version="1.0.0" />
+<PackageReference Include="Liturgy.Godot" Version="0.1.0" />
 ```
 
 That's all. There's no addon to copy, no plugin to enable and no autoload to register.
@@ -76,8 +76,78 @@ exported game. In the editor itself it does nothing.
 Only assemblies that reference Liturgy are scanned for hooks, so large dependencies cost nothing at startup. A
 library of rites that your game references is found even if .NET hasn't loaded it yet when Liturgy starts.
 
+## The Harness
+
+Global hooks have a fair criticism: behavior arrives from somewhere you can't see. Liturgy answers it by showing you
+everything. Run your game from the editor and press **Alt+~** to open the harness, an overlay that lists:
+
+- **Rites:** every method carrying a rite, its description, how many nodes it acts on right now, how often it has
+  fired and when it last did. Select one to outline its nodes on screen. Untick it to mute it and see what changes.
+- **Nodes:** your scene tree with how many rites act on each node. Pick a control on screen to jump to it and see every
+  rite acting on it, with how often each has fired for that node.
+- **Assigned:** every `AssignNode` member, the path it follows, the node it holds, and why it's empty when it is.
+- **Log:** the latest firings, with the node each ran for.
+
+Click a heading to sort by it, drag the lines between headings, panes and the panel's edge to resize them; the harness
+remembers the layout per project.
+
+While it's open, the harness takes all keyboard and mouse input, so your game doesn't react to clicks and keys meant
+for it. Code that polls `Input` every frame still sees keys; set `HarnessPausesGame` to pause the game while it's open.
+The first time a project runs with Liturgy, and again after each update, a note in the corner says hello and lists
+what's new.
+
+The harness is a development tool. Exported games never include it, nor the counting behind it: rites are called
+directly. To turn it off in editor runs too:
+
+```csharp
+[assembly: Rite.Settings(Harness = false)]
+```
+
+To profile a single run without it, add `--liturgy-quiet` to Project Settings > Editor > Run > Main Run Args.
+
+If your project turns off embedded subwindows, the harness opens as its own window instead of an overlay, without
+on-screen picking.
+
+### Describing Rites
+
+Every rite takes an optional `Description`, shown in the harness next to what it touches:
+
+```csharp
+[Rite.OnButtonPressed(Description = "Plays the click sound for every button.")]
+private static void Click(BaseButton button) => Sounds.Play("click");
+```
+
+### Keeping Nodes Out
+
+Add a node to the `liturgy_ignore` group (`Rite.IGNORE_GROUP`) and no rite sees it or anything under it. Use it for a
+scene that must behave exactly as written wherever it's placed, such as a third-party addon's UI. Add the group in
+the scene (Node > Groups) or before the node enters the tree; Liturgy decides when a node arrives. Liturgy's own nodes
+are always hidden this way.
+
+### Diagnostics API
+
+The harness is built on `Rite.Diagnostics`, which your own dev console can read:
+
+```csharp
+foreach (var rite in Rite.Diagnostics.Rites)
+    GD.Print($"{rite.Name}: {rite.Fires} fires. {rite.Description}");
+
+var onThisButton = Rite.Diagnostics.Touching(myButton);
+```
+
+It holds `Rites`, `Touching(node)`, `CountTouching()`, `NodesTouchedBy(rite)`, `RecentFirings` and `Reset()`. Each
+`RiteInfo` carries its counts, timings, `FiresFor(node)` and a settable `Muted`. Counts are kept in editor runs only.
+
+### When Not to Use Liturgy
+
+A rite is for a rule that holds across the game: *every* button clicks, *every* enemy registers, *every* focused
+control highlights. Behavior that belongs to one scene belongs in that scene's script, where someone reading the scene
+will find it. If you'd describe a rite with "when this particular node...", it's probably not a rite. Liturgy doesn't
+replace signals you'd connect in a single scene; it replaces wiring the same signal into every scene.
+
 ## Table of Contents
 
+- [The Harness](#the-harness)
 - [Node Lifecycle](#node-lifecycle)
 - [AssignNode](#assignnode)
 - [Frame Processing](#frame-processing)
@@ -156,13 +226,19 @@ private static Player Player;
 // Works with properties too
 [Rite.AssignNode("/root/AudioManager")]
 private static AudioManager Audio { get; set; }
+
+// Or an interface: whatever node at the path implements it
+[Rite.AssignNode("/root/Music")]
+private static IMusicPlayer Music;
 ```
 
 **Key points:**
 - Assignments happen when `/root` is ready, **before** any `[Rite.OnReady]` callbacks in `RootReady` mode
 - This means your `[Rite.OnReady]` methods can safely reference these static fields
-- If a node isn't found at the path, a warning is logged and the field is skipped
-- The field/property type must match the node type (or be a base type)
+- The member follows its path: when its node leaves the tree it's set to null, and when a node arrives at the path again (after a scene change, say) it's assigned that one, so it never holds a freed node
+- If no node is at the path yet, a warning is logged and the member stays null until one arrives
+- The member's type can be a node type, a base type, or an interface the node implements
+- The harness lists every assigned member, the node it holds, and why it's empty when it is
 
 ```csharp
 // Safe to use GM here — it's already assigned
@@ -728,7 +804,8 @@ Enable verbose logging and report generation:
 ```
 
 When enabled and running from the editor (exported builds ignore it), Liturgy writes a timestamped report to `user://Liturgy/Logs/` showing all registered hooks and any
-validation errors (the console prints the full path). The ten most recent reports are kept.
+validation errors (the console prints the full path). The ten most recent reports are kept. For a live view of the
+same rites while the game runs, open [the harness](#the-harness).
 
 ---
 
@@ -815,8 +892,8 @@ private static void UpdateAllNodes(double delta, Node node) { }
 Open `Liturgy.sln`. It holds the library (`src/Liturgy`), the source generator (`src/Liturgy.Generators`) and
 `sandbox/`, a Godot project whose test bed exercises every hook category (open `sandbox/project.godot` and run it).
 
-`sandbox/Checks/Checks.tscn` runs automated checks for `OnSignal`, interface rites, reparenting, pausing and a rite
-library loaded late (`sandbox/Library`). Run that scene; it prints each check, ends with `ALL PASSED`, and exits with
+`sandbox/Checks/Checks.tscn` runs automated checks for `OnSignal`, interface rites, reparenting, pausing, a rite
+library loaded late (`sandbox/Library`), diagnostics, the ignore group and the harness. Run that scene; it prints each check, ends with `ALL PASSED`, and exits with
 code 1 on a failure, so it also runs headless:
 
 ```
@@ -829,8 +906,12 @@ Pack with:
 dotnet pack src/Liturgy -c ExportRelease
 ```
 
+Before each release, raise `<Version>` in `src/Liturgy/Liturgy.csproj` and add a section for it at the top of
+`CHANGELOG.md`. The changelog is built into the package, and the harness shows each project the sections it hasn't
+seen yet.
+
 ---
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+MIT. See [LICENSE](https://github.com/Oddness-1/Liturgy/blob/master/LICENSE).

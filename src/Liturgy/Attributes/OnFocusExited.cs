@@ -36,7 +36,7 @@ public static partial class Rite
     /// </example>
     [MeansImplicitUse]
     [AttributeUsage(AttributeTargets.Method, Inherited = false)]
-    public sealed class OnFocusExited : Attribute
+    public sealed class OnFocusExited : RiteAttribute
     {
         /// <summary>
         /// Comma-separated node paths. Fires only for these controls (null = all).

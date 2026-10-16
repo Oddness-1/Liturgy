@@ -109,20 +109,20 @@ internal sealed partial class LiturgyNode
 
         foreach (var (method, _) in validEntries.OrderBy(e => e.Priority))
         {
-            var del = (Action)Delegate.CreateDelegate(typeof(Action), method);
+            var del = (Action)RiteProbe.Create(typeof(Action), method);
             _treeChangedCallbacks.Add(del);
         }
     }
 
     private void OnNodeAddedCallback(Node node)
     {
-        if (IsInternalNode(node)) return;
+        if (IsHiddenFromRites(node)) return;
         foreach (var callback in _nodeAddedCallbacks) RiteCall.Run(callback, node);
     }
 
     private void OnNodeRemovedCallback(Node node)
     {
-        if (IsInternalNode(node)) return;
+        if (IsHiddenFromRites(node)) return;
         foreach (var callback in _nodeRemovedCallbacks) RiteCall.Run(callback, node);
     }
 

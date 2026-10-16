@@ -47,7 +47,7 @@ public static partial class Rite
     /// </example>
     [MeansImplicitUse]
     [AttributeUsage(AttributeTargets.Method, Inherited = false)]
-    public sealed class OnValueChanged : Attribute
+    public sealed class OnValueChanged : RiteAttribute
     {
         /// <summary>
         /// Comma-separated node paths to target.

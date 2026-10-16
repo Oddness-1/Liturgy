@@ -36,7 +36,7 @@ public static partial class Rite
     /// </example>
     [MeansImplicitUse]
     [AttributeUsage(AttributeTargets.Method, Inherited = false)]
-    public sealed class OnCloseRequested : Attribute
+    public sealed class OnCloseRequested : RiteAttribute
     {
         /// <summary>
         /// Comma-separated node paths. Fires only for these windows (null = all).

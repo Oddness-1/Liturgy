@@ -270,6 +270,7 @@ internal sealed partial class LiturgyNode
         while (stack.Count > 0)
         {
             var node = stack.Pop();
+            if (IsShielded(node)) continue;
             
             if (node is TNode typedNode)
             {
@@ -285,7 +286,7 @@ internal sealed partial class LiturgyNode
 
     private void OnNodeAddedForButtons(Node node)
     {
-        if (IsInternalNode(node)) return;
+        if (IsHiddenFromRites(node)) return;
         if (node is BaseButton button) SubscribeToButton(button);
     }
 

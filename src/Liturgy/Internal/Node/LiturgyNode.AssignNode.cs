@@ -9,13 +9,10 @@ namespace Liturgy.Internal;
 
 internal sealed partial class LiturgyNode
 {
-    private readonly record struct AssignNodeEntry(
-        MemberInfo Member,
-        string Path,
-        Type NodeType,
-        bool IsProperty);
+    private readonly List<AssignmentInfo> _assignments = [];
+    private int _waitingAssignments;
 
-    private readonly List<AssignNodeEntry> _assignNodeEntries = [];
+    public IReadOnlyList<AssignmentInfo> Assignments => _assignments;
 
     private void SetupAssignNodeEntries()
     {
@@ -33,89 +30,182 @@ internal sealed partial class LiturgyNode
             return;
         }
 
-        // Scan static fields
         foreach (var field in type.GetFields(BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic))
         {
-            var attr = field.GetCustomAttribute<AssignNode>();
-            if (attr is null) continue;
-
-            if (!typeof(Node).IsAssignableFrom(field.FieldType))
-            {
-                var memberName = $"{type.FullName}.{field.Name}";
-                LiturgyReport.AddConsoleWarning(
-                    $"[Liturgy] [Rite.AssignNode] '{memberName}' must be of type Node or derived. Skipping.");
-                continue;
-            }
-
-            var normalizedPath = NormalizePath(attr.Path);
-            _assignNodeEntries.Add(new AssignNodeEntry(field, normalizedPath, field.FieldType, IsProperty: false));
-            
-            LiturgyReport.AddAssignNodeEntry($"{type.FullName}.{field.Name}", normalizedPath, field.FieldType.Name);
+            if (field.GetCustomAttribute<AssignNode>() is { } attribute) AddAssignment(type, field, field.FieldType, attribute);
         }
 
-        // Scan static properties
         foreach (var property in type.GetProperties(BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic))
         {
-            var attr = property.GetCustomAttribute<AssignNode>();
-            if (attr is null) continue;
+            if (property.GetCustomAttribute<AssignNode>() is not { } attribute) continue;
 
             if (!property.CanWrite)
             {
-                var memberName = $"{type.FullName}.{property.Name}";
-                LiturgyReport.AddConsoleWarning(
-                    $"[Liturgy] [Rite.AssignNode] '{memberName}' must have a setter. Skipping.");
+                LiturgyReport.AddConsoleWarning($"[Liturgy] [Rite.AssignNode] '{type.FullName}.{property.Name}' must have a setter. Skipping.");
                 continue;
             }
 
-            if (!typeof(Node).IsAssignableFrom(property.PropertyType))
-            {
-                var memberName = $"{type.FullName}.{property.Name}";
-                LiturgyReport.AddConsoleWarning(
-                    $"[Liturgy] [Rite.AssignNode] '{memberName}' must be of type Node or derived. Skipping.");
-                continue;
-            }
-
-            var normalizedPath = NormalizePath(attr.Path);
-            _assignNodeEntries.Add(new AssignNodeEntry(property, normalizedPath, property.PropertyType, IsProperty: true));
-            
-            LiturgyReport.AddAssignNodeEntry($"{type.FullName}.{property.Name}", normalizedPath, property.PropertyType.Name);
+            AddAssignment(type, property, property.PropertyType, attribute);
         }
+    }
+
+    private void AddAssignment(Type type, MemberInfo member, Type memberType, AssignNode attribute)
+    {
+        // An interface is checked against the node found, like any other type.
+        if (!typeof(Node).IsAssignableFrom(memberType) && !memberType.IsInterface)
+        {
+            LiturgyReport.AddConsoleWarning($"[Liturgy] [Rite.AssignNode] '{type.FullName}.{member.Name}' must be a Node type or an interface. Skipping.");
+            return;
+        }
+
+        var path = IsPattern(attribute.Path) ? NormalizeExcludePattern(attribute.Path) : NormalizePath(attribute.Path);
+        _assignments.Add(new AssignmentInfo(member, path, memberType) { Problem = "Waiting for /root to be ready." });
+        _waitingAssignments++;
+        LiturgyReport.AddAssignNodeEntry($"{type.FullName}.{member.Name}", path, memberType.Name);
     }
 
     private void ExecuteAssignNodeEntries()
     {
-        foreach (var entry in _assignNodeEntries)
+        foreach (var assignment in _assignments) TryAssign(assignment, warn: true);
+
+        // Each member follows its path, so a node that arrives there later, such as after a scene change, is assigned.
+        if (_assignments.Count > 0) GetTree().NodeAdded += OnNodeAddedForAssignments;
+    }
+
+    private void OnNodeAddedForAssignments(Node node)
+    {
+        if (_waitingAssignments == 0) return;
+
+        var name = node.Name.ToString();
+        foreach (var assignment in _assignments)
         {
-            var node = ResolveNodePath(entry.Path);
-            var memberName = $"{entry.Member.DeclaringType?.FullName}.{entry.Member.Name}";
+            if (assignment.Node is not null) continue;
 
-            if (node is null)
+            if (IsPattern(assignment.Path))
             {
-                LiturgyReport.AddConsoleWarning(
-                    $"[Liturgy] [Rite.AssignNode] '{memberName}': Node not found at path '{entry.Path}'. Skipping.");
-                continue;
+                if (MatchesPattern(assignment, node)) Assign(assignment, node, warn: false);
             }
-
-            if (!entry.NodeType.IsInstanceOfType(node))
-            {
-                LiturgyReport.AddConsoleWarning(
-                    $"[Liturgy] [Rite.AssignNode] '{memberName}': Node at '{entry.Path}' is {node.GetType().Name}, expected {entry.NodeType.Name}. Skipping.");
-                continue;
-            }
-
-            try
-            {
-                if (entry.IsProperty)
-                    ((PropertyInfo)entry.Member).SetValue(null, node);
-                else
-                    ((FieldInfo)entry.Member).SetValue(null, node);
-            }
-            catch (Exception ex)
-            {
-                LiturgyReport.AddConsoleWarning(
-                    $"[Liturgy] [Rite.AssignNode] '{memberName}': Failed to assign: {ex.Message}");
-            }
+            else if (LastSegment(assignment.Path) == name) TryAssign(assignment, warn: false);
         }
+    }
+
+    private void TryAssign(AssignmentInfo assignment, bool warn)
+    {
+        if (IsPattern(assignment.Path))
+        {
+            if (FirstMatch(assignment) is { } match) Assign(assignment, match, warn);
+            else
+            {
+                Wait(assignment, $"No {assignment.MemberType.Name} matches the pattern yet.");
+                if (warn) LiturgyReport.AddConsoleWarning($"[Liturgy] [Rite.AssignNode] '{assignment.FullName}': No {assignment.MemberType.Name} matches '{assignment.Path}'. It's assigned when one arrives.");
+            }
+
+            return;
+        }
+
+        var node = ResolveNodePath(assignment.Path, warn);
+
+        if (node is null)
+        {
+            Wait(assignment, "No node at the path yet.");
+            if (warn) LiturgyReport.AddConsoleWarning($"[Liturgy] [Rite.AssignNode] '{assignment.FullName}': Node not found at path '{assignment.Path}'. It's assigned when one arrives there.");
+            return;
+        }
+
+        if (!assignment.MemberType.IsInstanceOfType(node))
+        {
+            Wait(assignment, $"The node at the path is {node.GetType().Name}, not {assignment.MemberType.Name}.");
+            if (warn) LiturgyReport.AddConsoleWarning($"[Liturgy] [Rite.AssignNode] '{assignment.FullName}': Node at '{assignment.Path}' is {node.GetType().Name}, expected {assignment.MemberType.Name}. Skipping.");
+            return;
+        }
+
+        Assign(assignment, node, warn);
+    }
+
+    private void Assign(AssignmentInfo assignment, Node node, bool warn)
+    {
+        try
+        {
+            assignment.Write(node);
+        }
+        catch (Exception exception)
+        {
+            Wait(assignment, $"Assigning it failed: {exception.Message}");
+            if (warn) LiturgyReport.AddConsoleWarning($"[Liturgy] [Rite.AssignNode] '{assignment.FullName}': Failed to assign: {exception.Message}");
+            return;
+        }
+
+        if (assignment.Problem is not null) _waitingAssignments--;
+        assignment.Node = node;
+        assignment.Problem = null;
+        assignment.Assignments++;
+        node.TreeExiting += Left;
+
+        return;
+
+        // The member is emptied rather than left holding a node that's gone, and waits for the next one at its path.
+        // A pattern may already match another node in the tree, which is looked for once this one is out.
+        void Left()
+        {
+            node.TreeExiting -= Left;
+            if (assignment.Node != node) return;
+
+            assignment.Node = null;
+            try { assignment.Write(null); }
+            catch (Exception exception) { GD.PushWarning($"[Liturgy] [Rite.AssignNode] '{assignment.FullName}': Failed to clear: {exception.Message}"); }
+            Wait(assignment, "Its node left the tree; it's assigned again when one arrives at the path.");
+
+            if (IsPattern(assignment.Path)) Callable.From(() => { if (assignment.Node is null) TryAssign(assignment, warn: false); }).CallDeferred();
+        }
+    }
+
+    private static bool IsPattern(string path) => path.Contains('*');
+
+    // The first fitting node in tree order, outside Liturgy's own nodes and anything hidden from rites.
+    private Node? FirstMatch(AssignmentInfo assignment)
+    {
+        var stack = new Stack<Node>();
+        stack.Push(_root);
+
+        while (stack.Count > 0)
+        {
+            var node = stack.Pop();
+            if (IsShielded(node)) continue;
+            if (node != _root && MatchesPattern(assignment, node)) return node;
+
+            var children = node.GetChildren();
+            for (var i = children.Count - 1; i >= 0; i--) stack.Push(children[i]);
+        }
+
+        return null;
+    }
+
+    // A last segment written %Name also needs the node to have a scene-unique name, as % means in a node path.
+    private static bool MatchesPattern(AssignmentInfo assignment, Node node)
+    {
+        if (!assignment.MemberType.IsInstanceOfType(node) || !node.IsInsideTree() || IsShielded(node)) return false;
+
+        var pattern = assignment.Path;
+        var last = pattern[(pattern.LastIndexOf('/') + 1)..];
+        if (last.StartsWith('%'))
+        {
+            if (!node.UniqueNameInOwner) return false;
+            pattern = pattern[..(pattern.Length - last.Length)] + last[1..];
+        }
+
+        return PathMatchesAnyExclude(node.GetPath().ToString(), [pattern]);
+    }
+
+    private void Wait(AssignmentInfo assignment, string problem)
+    {
+        if (assignment.Problem is null) _waitingAssignments++;
+        assignment.Problem = problem;
+    }
+
+    private static string LastSegment(string path)
+    {
+        var name = path[(path.LastIndexOf('/') + 1)..];
+        return name.StartsWith('%') ? name[1..] : name;
     }
 
     /// <summary>
@@ -123,36 +213,39 @@ internal sealed partial class LiturgyNode
     /// For paths like "Headspace/%Actions", resolves "Headspace" from /root/,
     /// then calls GetNode("%Actions") from that context.
     /// </summary>
-    private Node? ResolveNodePath(string path)
+    private Node? ResolveNodePath(string path, bool warn)
     {
         var percentIndex = path.IndexOf('%');
-        
+
         // No % in path - standard resolution
         if (percentIndex < 0)
             return _root.GetNodeOrNull(path);
-        
+
         // Path starts with % - resolve from /root/ directly
         if (percentIndex == 0)
             return _root.GetNodeOrNull(path);
-        
+
         // Split on the % - everything before is the context path
         // Handle both "Headspace/%Actions" and "/root/Headspace/%Actions"
         var contextPath = path[..(percentIndex - 1)]; // -1 to remove trailing /
         var uniqueNamePath = path[percentIndex..];     // Includes the %
-        
+
         // Normalize and resolve the context node
         var normalizedContext = NormalizePath(contextPath);
         var contextNode = _root.GetNodeOrNull(normalizedContext);
-        
+
         if (contextNode is null)
         {
-            LiturgyReport.AddConsoleWarning(
-                $"[Liturgy] [Rite.AssignNode] Context node not found at '{normalizedContext}' for unique name lookup '{uniqueNamePath}'.");
+            if (warn)
+            {
+                LiturgyReport.AddConsoleWarning(
+                    $"[Liturgy] [Rite.AssignNode] Context node not found at '{normalizedContext}' for unique name lookup '{uniqueNamePath}'.");
+            }
+
             return null;
         }
-        
+
         // Now resolve the unique name from the context node
         return contextNode.GetNodeOrNull(uniqueNamePath);
     }
 }
-

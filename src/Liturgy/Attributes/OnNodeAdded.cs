@@ -36,7 +36,7 @@ public static partial class Rite
     /// </example>
     [MeansImplicitUse]
     [AttributeUsage(AttributeTargets.Method, Inherited = false)]
-    public sealed class OnNodeAdded : Attribute
+    public sealed class OnNodeAdded : RiteAttribute
     {
         /// <summary>
         /// Execution order (lower runs first). Default is 0.

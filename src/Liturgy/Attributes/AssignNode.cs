@@ -15,7 +15,13 @@ public static partial class Rite
     /// when your ready callbacks execute.
     /// </para>
     /// <para>
-    /// If the node is not found at the specified path, a warning is logged and the member is not assigned.
+    /// The member follows its path for the rest of the game. When its node leaves the tree, the member is set to null;
+    /// when a node arrives at the path again, such as after a scene change, it's assigned that one. If no node is at
+    /// the path when <c>/root</c> is ready, a warning is logged and the member stays null until one arrives.
+    /// </para>
+    /// <para>
+    /// The member's type can be a node type or an interface; the node found must be of that type or implement that
+    /// interface, or the member isn't assigned.
     /// </para>
     /// <para>
     /// Supports unique name syntax (%) for nodes with scene-unique names. Use the format
@@ -38,6 +44,11 @@ public static partial class Rite
     /// // Assign to a property
     /// [Rite.AssignNode("/root/AudioManager")]
     /// private static AudioManager Audio { get; set; }
+    /// </code>
+    /// <code>
+    /// // Assign by interface: any node at the path that implements it
+    /// [Rite.AssignNode("/root/Music")]
+    /// private static IMusicPlayer Music;
     /// </code>
     /// <code>
     /// // Assign using unique name syntax (% prefix)

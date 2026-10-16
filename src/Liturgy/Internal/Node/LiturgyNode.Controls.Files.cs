@@ -93,19 +93,19 @@ internal sealed partial class LiturgyNode
         
         if (parameters.Length == 0)
         {
-            var del = (Action)Delegate.CreateDelegate(typeof(Action), method);
+            var del = (Action)RiteProbe.Create(typeof(Action), method);
             return (_, _) => del();
         }
         
         if (stringIdx is not null && sourceIdx is null)
         {
-            var del = (Action<string>)Delegate.CreateDelegate(typeof(Action<string>), method);
+            var del = (Action<string>)RiteProbe.Create(typeof(Action<string>), method);
             return (path, _) => del(path);
         }
         
         if (stringIdx is null && sourceIdx is not null)
         {
-            var del = (Action<FileDialog>)Delegate.CreateDelegate(typeof(Action<FileDialog>), method);
+            var del = (Action<FileDialog>)RiteProbe.Create(typeof(Action<FileDialog>), method);
             return (_, source) => del(source);
         }
         
@@ -113,12 +113,12 @@ internal sealed partial class LiturgyNode
         {
             if (stringIdx < sourceIdx)
             {
-                var del = (Action<string, FileDialog>)Delegate.CreateDelegate(typeof(Action<string, FileDialog>), method);
+                var del = (Action<string, FileDialog>)RiteProbe.Create(typeof(Action<string, FileDialog>), method);
                 return del;
             }
             else
             {
-                var del = (Action<FileDialog, string>)Delegate.CreateDelegate(typeof(Action<FileDialog, string>), method);
+                var del = (Action<FileDialog, string>)RiteProbe.Create(typeof(Action<FileDialog, string>), method);
                 return (path, source) => del(source, path);
             }
         }

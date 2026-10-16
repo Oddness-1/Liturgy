@@ -33,7 +33,7 @@ internal sealed partial class LiturgyNode
             if (parameters.Length == 0)
             {
                 // No parameters - register for both types
-                var del = (Action)Delegate.CreateDelegate(typeof(Action), method);
+                var del = (Action)RiteProbe.Create(typeof(Action), method);
                 LiturgyReport.AddControlHook("OnVisibilityChanged", methodName, attr.Target, attr.Exclude, attr.Priority, null);
                 
                 AddVisibilityCallback(_visibilityChangedCanvasItemGlobalCallbacks, _visibilityChangedCanvasItemTargetedCallbacks, 
@@ -118,6 +118,7 @@ internal sealed partial class LiturgyNode
         while (stack.Count > 0)
         {
             var node = stack.Pop();
+            if (IsShielded(node)) continue;
             SubscribeVisibilityNode(node);
             foreach (var child in node.GetChildren()) stack.Push(child);
         }
@@ -125,7 +126,7 @@ internal sealed partial class LiturgyNode
 
     private void OnNodeAddedForVisibility(Node node)
     {
-        if (IsInternalNode(node)) return;
+        if (IsHiddenFromRites(node)) return;
         SubscribeVisibilityNode(node);
     }
 
@@ -154,7 +155,7 @@ internal sealed partial class LiturgyNode
     private void SubscribeCanvasItemForVisibility(CanvasItem canvasItem)
     {
         if (_subscribedCanvasItemsForVisibility.Contains(canvasItem)) return;
-        if (IsInternalNode(canvasItem)) return;
+        if (IsHiddenFromRites(canvasItem)) return;
         
         var path = canvasItem.GetPath().ToString();
         var hasTargeted = _visibilityChangedCanvasItemTargetedCallbacks.ContainsKey(path);
@@ -169,7 +170,7 @@ internal sealed partial class LiturgyNode
     private void SubscribeNode3DForVisibility(Node3D node3D)
     {
         if (_subscribedNode3DsForVisibility.Contains(node3D)) return;
-        if (IsInternalNode(node3D)) return;
+        if (IsHiddenFromRites(node3D)) return;
         
         var path = node3D.GetPath().ToString();
         var hasTargeted = _visibilityChangedNode3DTargetedCallbacks.ContainsKey(path);

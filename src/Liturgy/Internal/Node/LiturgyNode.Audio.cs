@@ -33,7 +33,7 @@ internal sealed partial class LiturgyNode
             if (parameters.Length == 0)
             {
                 // No parameters - register for all three types
-                var del = (Action)Delegate.CreateDelegate(typeof(Action), method);
+                var del = (Action)RiteProbe.Create(typeof(Action), method);
                 LiturgyReport.AddControlHook("OnAudioFinished", methodName, attr.Target, attr.Exclude, attr.Priority, null);
                 
                 AddAudioCallback(_audioFinishedGlobalCallbacks, _audioFinishedTargetedCallbacks, (Action<AudioStreamPlayer>)(_ => del()), excludeSet, attr.Target);
@@ -122,6 +122,7 @@ internal sealed partial class LiturgyNode
         while (stack.Count > 0)
         {
             var node = stack.Pop();
+            if (IsShielded(node)) continue;
             SubscribeAudioNode(node);
             foreach (var child in node.GetChildren()) stack.Push(child);
         }
@@ -129,7 +130,7 @@ internal sealed partial class LiturgyNode
 
     private void OnNodeAddedForAudio(Node node)
     {
-        if (IsInternalNode(node)) return;
+        if (IsHiddenFromRites(node)) return;
         SubscribeAudioNode(node);
     }
 
@@ -155,7 +156,7 @@ internal sealed partial class LiturgyNode
 
     private void SubscribeAudioPlayer(AudioStreamPlayer player)
     {
-        if (_subscribedAudioPlayers.Contains(player) || IsInternalNode(player)) return;
+        if (_subscribedAudioPlayers.Contains(player) || IsHiddenFromRites(player)) return;
         
         var path = player.GetPath().ToString();
         var hasAny = _audioFinishedTargetedCallbacks.ContainsKey(path) || _audioFinishedGlobalCallbacks.Count > 0;
@@ -183,7 +184,7 @@ internal sealed partial class LiturgyNode
 
     private void SubscribeAudioPlayer2D(AudioStreamPlayer2D player)
     {
-        if (_subscribedAudioPlayers2D.Contains(player) || IsInternalNode(player)) return;
+        if (_subscribedAudioPlayers2D.Contains(player) || IsHiddenFromRites(player)) return;
         
         var path = player.GetPath().ToString();
         var hasAny = _audio2DFinishedTargetedCallbacks.ContainsKey(path) || _audio2DFinishedGlobalCallbacks.Count > 0;
@@ -211,7 +212,7 @@ internal sealed partial class LiturgyNode
 
     private void SubscribeAudioPlayer3D(AudioStreamPlayer3D player)
     {
-        if (_subscribedAudioPlayers3D.Contains(player) || IsInternalNode(player)) return;
+        if (_subscribedAudioPlayers3D.Contains(player) || IsHiddenFromRites(player)) return;
         
         var path = player.GetPath().ToString();
         var hasAny = _audio3DFinishedTargetedCallbacks.ContainsKey(path) || _audio3DFinishedGlobalCallbacks.Count > 0;

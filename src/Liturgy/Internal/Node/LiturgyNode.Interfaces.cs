@@ -85,7 +85,7 @@ internal sealed partial class LiturgyNode
         public void Invoke(Node node, object? argument)
         {
             if (Excludes is not null && PathMatchesAnyExclude(node.GetPath().ToString(), Excludes)) return;
-            try { Method.Invoke(node, BindingFlags.DoNotWrapExceptions, null, Parameter is null ? [] : [argument], CultureInfo.InvariantCulture); }
+            try { RiteProbe.Run(Method, node, (Method, node, arguments: Parameter is null ? [] : new[] { argument }), static call => call.Method.Invoke(call.node, BindingFlags.DoNotWrapExceptions, null, call.arguments, CultureInfo.InvariantCulture)); }
             catch (Exception exception) { RiteCall.Report(exception, MethodName); }
         }
     }
@@ -204,6 +204,7 @@ internal sealed partial class LiturgyNode
         switch (ClassifyInterfaceRite(attr))
         {
             case InterfaceRiteKind.Signal:
+                RiteProbe.MarkRunning(method);
                 rites.Signals ??= [];
                 rites.Signals.Add(new SignalRite
                 {
@@ -218,12 +219,15 @@ internal sealed partial class LiturgyNode
                 break;
 
             case InterfaceRiteKind.Ready:
-                if (ValidateInstanceCall(method, methodName, hookName, null, out _)) rites.Ready.Add(new InstanceCall(method, methodName, priority, excludes, null));
+                if (!ValidateInstanceCall(method, methodName, hookName, null, out _)) break;
+                RiteProbe.MarkRunning(method);
+                rites.Ready.Add(new InstanceCall(method, methodName, priority, excludes, null));
                 break;
 
             case InterfaceRiteKind.Process:
             case InterfaceRiteKind.PhysicsProcess:
                 if (!ValidateInstanceCall(method, methodName, hookName, typeof(double), out var delta)) break;
+                RiteProbe.MarkRunning(method);
                 var frameCall = new InstanceCall(method, methodName, priority, excludes, delta);
                 (attr is OnProcess ? rites.Process : rites.PhysicsProcess).Add(frameCall);
                 break;
@@ -232,6 +236,7 @@ internal sealed partial class LiturgyNode
             case InterfaceRiteKind.UnhandledInput:
             case InterfaceRiteKind.UnhandledKeyInput:
                 if (!ValidateInstanceCall(method, methodName, hookName, typeof(InputEvent), out var eventType)) break;
+                RiteProbe.MarkRunning(method);
                 var inputCall = new InstanceCall(method, methodName, priority, excludes, eventType);
                 (attr switch { OnInput => rites.Input, OnUnhandledInput => rites.UnhandledInput, _ => rites.UnhandledKeyInput }).Add(inputCall);
                 break;

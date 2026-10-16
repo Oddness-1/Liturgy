@@ -42,7 +42,7 @@ public static partial class Rite
     /// </example>
     [MeansImplicitUse]
     [AttributeUsage(AttributeTargets.Method, Inherited = false)]
-    public sealed class OnMouseEntered : Attribute
+    public sealed class OnMouseEntered : RiteAttribute
     {
         /// <summary>
         /// Comma-separated node paths. Fires only for these nodes (null = all).

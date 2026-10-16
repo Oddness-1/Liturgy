@@ -36,7 +36,7 @@ public static partial class Rite
     /// </example>
     [MeansImplicitUse]
     [AttributeUsage(AttributeTargets.Method, Inherited = false)]
-    public sealed class OnCanceled : Attribute
+    public sealed class OnCanceled : RiteAttribute
     {
         /// <summary>
         /// Comma-separated node paths. Fires only for these dialogs (null = all).

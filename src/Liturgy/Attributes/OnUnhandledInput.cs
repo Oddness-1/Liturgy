@@ -31,7 +31,7 @@ public static partial class Rite
     /// </example>
     [MeansImplicitUse]
     [AttributeUsage(AttributeTargets.Method, Inherited = false)]
-    public sealed class OnUnhandledInput : Attribute
+    public sealed class OnUnhandledInput : RiteAttribute
     {
         /// <summary>
         /// Execution order (lower runs first). Default is 0.

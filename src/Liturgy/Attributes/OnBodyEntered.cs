@@ -48,7 +48,7 @@ public static partial class Rite
     /// </example>
     [MeansImplicitUse]
     [AttributeUsage(AttributeTargets.Method, Inherited = false)]
-    public sealed class OnBodyEntered : Attribute
+    public sealed class OnBodyEntered : RiteAttribute
     {
         /// <summary>
         /// Comma-separated node paths. Fires only for these areas/bodies (null = all).

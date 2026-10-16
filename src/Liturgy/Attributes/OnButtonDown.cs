@@ -36,7 +36,7 @@ public static partial class Rite
     /// </example>
     [MeansImplicitUse]
     [AttributeUsage(AttributeTargets.Method, Inherited = false)]
-    public sealed class OnButtonDown : Attribute
+    public sealed class OnButtonDown : RiteAttribute
     {
         /// <summary>
         /// Comma-separated node paths. Fires only for these buttons (null = all).

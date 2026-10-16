@@ -64,7 +64,7 @@ public static partial class Rite
     /// </example>
     [MeansImplicitUse]
     [AttributeUsage(AttributeTargets.Method, Inherited = false)]
-    public sealed class OnProcess : Attribute
+    public sealed class OnProcess : RiteAttribute
     {
         /// <summary>
         /// Determines when the callback fires. Default is Global (fires once per frame).

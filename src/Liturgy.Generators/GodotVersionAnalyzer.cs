@@ -20,7 +20,7 @@ public sealed class GodotVersionAnalyzer : DiagnosticAnalyzer
     internal static readonly DiagnosticDescriptor UNTESTED_GODOT = new(
         "LIT007", "Godot version not tested with Liturgy",
         "Liturgy was tested with Godot {0}, and this project uses Godot {1}; run the game once and check that /root/Liturgy exists before relying on rites",
-        "Liturgy", DiagnosticSeverity.Warning, isEnabledByDefault: true);
+        "Liturgy", DiagnosticSeverity.Warning, isEnabledByDefault: true, customTags: [WellKnownDiagnosticTags.CompilationEnd]);
 
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } = [UNTESTED_GODOT];
 

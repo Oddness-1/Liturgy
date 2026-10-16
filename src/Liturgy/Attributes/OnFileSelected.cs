@@ -41,7 +41,7 @@ public static partial class Rite
     /// </example>
     [MeansImplicitUse]
     [AttributeUsage(AttributeTargets.Method, Inherited = false)]
-    public sealed class OnFileSelected : Attribute
+    public sealed class OnFileSelected : RiteAttribute
     {
         /// <summary>
         /// Comma-separated node paths to target.

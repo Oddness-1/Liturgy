@@ -102,7 +102,7 @@ internal sealed partial class LiturgyNode
         
         if (parameters.Length == 0)
         {
-            var del = (Action)Delegate.CreateDelegate(typeof(Action), method);
+            var del = (Action)RiteProbe.Create(typeof(Action), method);
             return ((_, _) => del(), false);
         }
         
@@ -142,18 +142,18 @@ internal sealed partial class LiturgyNode
             {
                 if (parameters[0].ParameterType == typeof(string))
                 {
-                    var del = (Action<string>)Delegate.CreateDelegate(typeof(Action<string>), method);
+                    var del = (Action<string>)RiteProbe.Create(typeof(Action<string>), method);
                     return ((animName, _) => del(animName), true);
                 }
                 else
                 {
-                    var del = (Action<StringName>)Delegate.CreateDelegate(typeof(Action<StringName>), method);
+                    var del = (Action<StringName>)RiteProbe.Create(typeof(Action<StringName>), method);
                     return ((animName, _) => del(animName), true);
                 }
             }
             else
             {
-                var del = (Action<AnimationPlayer>)Delegate.CreateDelegate(typeof(Action<AnimationPlayer>), method);
+                var del = (Action<AnimationPlayer>)RiteProbe.Create(typeof(Action<AnimationPlayer>), method);
                 return ((_, player) => del(player), false);
             }
         }
@@ -164,12 +164,12 @@ internal sealed partial class LiturgyNode
             // (StringName, AnimationPlayer) or (string, AnimationPlayer)
             if (parameters[0].ParameterType == typeof(string))
             {
-                var del = (Action<string, AnimationPlayer>)Delegate.CreateDelegate(typeof(Action<string, AnimationPlayer>), method);
+                var del = (Action<string, AnimationPlayer>)RiteProbe.Create(typeof(Action<string, AnimationPlayer>), method);
                 return ((animName, player) => del(animName, player), true);
             }
             else
             {
-                var del = (Action<StringName, AnimationPlayer>)Delegate.CreateDelegate(typeof(Action<StringName, AnimationPlayer>), method);
+                var del = (Action<StringName, AnimationPlayer>)RiteProbe.Create(typeof(Action<StringName, AnimationPlayer>), method);
                 return (del, true);
             }
         }
@@ -178,12 +178,12 @@ internal sealed partial class LiturgyNode
             // (AnimationPlayer, StringName) or (AnimationPlayer, string)
             if (parameters[1].ParameterType == typeof(string))
             {
-                var del = (Action<AnimationPlayer, string>)Delegate.CreateDelegate(typeof(Action<AnimationPlayer, string>), method);
+                var del = (Action<AnimationPlayer, string>)RiteProbe.Create(typeof(Action<AnimationPlayer, string>), method);
                 return ((animName, player) => del(player, animName), true);
             }
             else
             {
-                var del = (Action<AnimationPlayer, StringName>)Delegate.CreateDelegate(typeof(Action<AnimationPlayer, StringName>), method);
+                var del = (Action<AnimationPlayer, StringName>)RiteProbe.Create(typeof(Action<AnimationPlayer, StringName>), method);
                 return ((animName, player) => del(player, animName), true);
             }
         }
@@ -197,6 +197,7 @@ internal sealed partial class LiturgyNode
         while (stack.Count > 0)
         {
             var node = stack.Pop();
+            if (IsShielded(node)) continue;
             if (node is AnimationPlayer player)
                 SubscribeAnimationPlayer(player);
             foreach (var child in node.GetChildren()) stack.Push(child);
@@ -205,7 +206,7 @@ internal sealed partial class LiturgyNode
 
     private void OnNodeAddedForAnimation(Node node)
     {
-        if (IsInternalNode(node)) return;
+        if (IsHiddenFromRites(node)) return;
         if (node is AnimationPlayer player)
             SubscribeAnimationPlayer(player);
     }
@@ -219,7 +220,7 @@ internal sealed partial class LiturgyNode
     private void SubscribeAnimationPlayer(AnimationPlayer player)
     {
         if (_subscribedAnimationPlayers.Contains(player)) return;
-        if (IsInternalNode(player)) return;
+        if (IsHiddenFromRites(player)) return;
         
         var path = player.GetPath().ToString();
         var hasTargeted = _animationFinishedTargetedCallbacks.ContainsKey(path) ||

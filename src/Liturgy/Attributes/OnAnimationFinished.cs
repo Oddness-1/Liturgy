@@ -41,7 +41,7 @@ public static partial class Rite
     /// </example>
     [MeansImplicitUse]
     [AttributeUsage(AttributeTargets.Method, Inherited = false)]
-    public sealed class OnAnimationFinished : Attribute
+    public sealed class OnAnimationFinished : RiteAttribute
     {
         /// <summary>
         /// Comma-separated node paths. Fires only for these animation players (null = all).

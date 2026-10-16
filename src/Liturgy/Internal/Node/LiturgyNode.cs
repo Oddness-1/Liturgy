@@ -66,14 +66,23 @@ internal sealed partial class LiturgyNode : Node
 
     public override void _Ready()
     {
+        Instance = this;
         InitializeDebugSetting();
 
         _root = GetTree().Root;
         GetTree().NodeRemoved += OnNodeRemovedForListeners;
 
+        // Counting, timing and the harness are for editor runs; an exported game calls rites directly.
+        Rite.Diagnostics.IsEnabled = Harness.IsWanted();
+        RiteInfo.RootId = _root.GetInstanceId();
+        GetTree().NodeRemoved += OnNodeRemovedForShield;
+
         // Initialize report (only when Debug is set and running from the editor)
         LiturgyReport.Reset();
         LiturgyReport.SetNodesInScene(CountNodesInTree(_root));
+
+        // Before the rites are wired, so building it is never seen by them.
+        if (Rite.Diagnostics.IsEnabled) AddChild(new Harness());
 
         // Each category is set up on its own, so a failure in one is reported and the rest still work.
         Action[] setups =
@@ -104,6 +113,11 @@ internal sealed partial class LiturgyNode : Node
 
         // Generate report (debug mode only)
         LiturgyReport.Generate();
+    }
+
+    public override void _ExitTree()
+    {
+        if (Instance == this) Instance = null;
     }
     
     private static int CountNodesInTree(Node root)
@@ -201,7 +215,13 @@ internal sealed partial class LiturgyNode : Node
 
                 if (method.IsStatic) methods.Add(method);
                 else if (type.IsInterface) interfaceMethods.Add(method);
-                else GD.PushWarning($"[Liturgy] {type.FullName}.{method.Name} must be static, or an interface member. Skipping.");
+                else
+                {
+                    GD.PushWarning($"[Liturgy] {type.FullName}.{method.Name} must be static, or an interface member. Skipping.");
+                    continue;
+                }
+
+                Rite.Diagnostics.Register(method);
             }
         }
 

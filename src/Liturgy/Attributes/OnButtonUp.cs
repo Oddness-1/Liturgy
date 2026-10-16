@@ -31,7 +31,7 @@ public static partial class Rite
     /// </example>
     [MeansImplicitUse]
     [AttributeUsage(AttributeTargets.Method, Inherited = false)]
-    public sealed class OnButtonUp : Attribute
+    public sealed class OnButtonUp : RiteAttribute
     {
         /// <summary>
         /// Comma-separated node paths. Fires only for these buttons (null = all).

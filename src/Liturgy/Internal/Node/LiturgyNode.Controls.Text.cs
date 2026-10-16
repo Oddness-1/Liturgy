@@ -101,19 +101,19 @@ internal sealed partial class LiturgyNode
         
         if (parameters.Length == 0)
         {
-            var del = (Action)Delegate.CreateDelegate(typeof(Action), method);
+            var del = (Action)RiteProbe.Create(typeof(Action), method);
             return (_, _) => del();
         }
         
         if (stringIdx is not null && sourceIdx is null)
         {
-            var del = (Action<string>)Delegate.CreateDelegate(typeof(Action<string>), method);
+            var del = (Action<string>)RiteProbe.Create(typeof(Action<string>), method);
             return (text, _) => del(text);
         }
         
         if (stringIdx is null && sourceIdx is not null)
         {
-            var del = (Action<LineEdit>)Delegate.CreateDelegate(typeof(Action<LineEdit>), method);
+            var del = (Action<LineEdit>)RiteProbe.Create(typeof(Action<LineEdit>), method);
             return (_, source) => del(source);
         }
         
@@ -121,12 +121,12 @@ internal sealed partial class LiturgyNode
         {
             if (stringIdx < sourceIdx)
             {
-                var del = (Action<string, LineEdit>)Delegate.CreateDelegate(typeof(Action<string, LineEdit>), method);
+                var del = (Action<string, LineEdit>)RiteProbe.Create(typeof(Action<string, LineEdit>), method);
                 return del;
             }
             else
             {
-                var del = (Action<LineEdit, string>)Delegate.CreateDelegate(typeof(Action<LineEdit, string>), method);
+                var del = (Action<LineEdit, string>)RiteProbe.Create(typeof(Action<LineEdit, string>), method);
                 return (text, source) => del(source, text);
             }
         }
@@ -142,7 +142,7 @@ internal sealed partial class LiturgyNode
         
         if (parameters.Length == 0)
         {
-            var del = (Action)Delegate.CreateDelegate(typeof(Action), method);
+            var del = (Action)RiteProbe.Create(typeof(Action), method);
             return _ => del();
         }
         
@@ -151,7 +151,7 @@ internal sealed partial class LiturgyNode
             var paramType = parameters[0].ParameterType;
             if (typeof(TextEdit).IsAssignableFrom(paramType))
             {
-                var del = (Action<TextEdit>)Delegate.CreateDelegate(typeof(Action<TextEdit>), method);
+                var del = (Action<TextEdit>)RiteProbe.Create(typeof(Action<TextEdit>), method);
                 return del;
             }
             

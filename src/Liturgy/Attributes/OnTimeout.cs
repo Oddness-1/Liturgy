@@ -36,7 +36,7 @@ public static partial class Rite
     /// </example>
     [MeansImplicitUse]
     [AttributeUsage(AttributeTargets.Method, Inherited = false)]
-    public sealed class OnTimeout : Attribute
+    public sealed class OnTimeout : RiteAttribute
     {
         /// <summary>
         /// Comma-separated node paths. Fires only for these timers (null = all).

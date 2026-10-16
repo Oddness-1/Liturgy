@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Godot;
 using static Liturgy.Rite;
 
 namespace Liturgy.Internal;
@@ -65,11 +66,14 @@ internal sealed partial class LiturgyNode
                 continue;
             }
 
-            if (pi >= path.Length || path[pi] != pattern[ti]) return false;
+            if (pi >= path.Length || !SegmentMatches(path[pi], pattern[ti])) return false;
             pi++;
             ti++;
         }
 
         return pi == path.Length;
     }
+
+    // A segment can hold its own wildcards, like "Debug*", matching within one name.
+    private static bool SegmentMatches(string name, string pattern) => pattern.Contains('*') ? name.Match(pattern) : name == pattern;
 }

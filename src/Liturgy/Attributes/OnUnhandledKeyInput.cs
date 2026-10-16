@@ -26,7 +26,7 @@ public static partial class Rite
     /// </example>
     [MeansImplicitUse]
     [AttributeUsage(AttributeTargets.Method, Inherited = false)]
-    public sealed class OnUnhandledKeyInput : Attribute
+    public sealed class OnUnhandledKeyInput : RiteAttribute
     {
         /// <summary>
         /// Execution order (lower runs first). Default is 0.

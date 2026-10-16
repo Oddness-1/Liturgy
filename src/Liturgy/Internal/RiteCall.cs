@@ -17,14 +17,18 @@ internal static class RiteCall
 
     public static void Run<T>(Action<T> rite, T argument)
     {
+        var outer = RiteProbe.EnterNode(argument as Node);
         try { rite(argument); }
         catch (Exception exception) { Report(exception); }
+        finally { RiteProbe.ExitNode(outer); }
     }
 
     public static void Run<T1, T2>(Action<T1, T2> rite, T1 first, T2 second)
     {
+        var outer = RiteProbe.EnterNode(first as Node ?? second as Node);
         try { rite(first, second); }
         catch (Exception exception) { Report(exception); }
+        finally { RiteProbe.ExitNode(outer); }
     }
 
     public static void Report(Exception exception, string? riteName = null)

@@ -20,7 +20,7 @@ public static partial class Rite
     /// </example>
     [MeansImplicitUse]
     [AttributeUsage(AttributeTargets.Method, Inherited = false)]
-    public sealed class OnScreenExited : Attribute
+    public sealed class OnScreenExited : RiteAttribute
     {
         /// <summary>
         /// Comma-separated node paths to target.

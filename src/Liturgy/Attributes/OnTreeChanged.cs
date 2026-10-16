@@ -20,7 +20,7 @@ public static partial class Rite
     /// </example>
     [MeansImplicitUse]
     [AttributeUsage(AttributeTargets.Method, Inherited = false)]
-    public sealed class OnTreeChanged : Attribute
+    public sealed class OnTreeChanged : RiteAttribute
     {
         /// <summary>
         /// Execution order (lower runs first). Default is 0.

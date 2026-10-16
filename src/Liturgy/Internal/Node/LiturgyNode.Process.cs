@@ -302,13 +302,13 @@ internal sealed partial class LiturgyNode
 
     private static Action<Window, double> CreateGlobalFrameCallback_NoParams(MethodInfo method)
     {
-        var del = (Action)Delegate.CreateDelegate(typeof(Action), method);
+        var del = (Action)RiteProbe.Create(typeof(Action), method);
         return (_, _) => del();
     }
 
     private static Action<Window, double> CreateGlobalFrameCallback_DeltaOnly(MethodInfo method)
     {
-        var del = (Action<double>)Delegate.CreateDelegate(typeof(Action<double>), method);
+        var del = (Action<double>)RiteProbe.Create(typeof(Action<double>), method);
         return (_, delta) => del(delta);
     }
 
@@ -319,19 +319,19 @@ internal sealed partial class LiturgyNode
         
         if (paramType == typeof(Window))
         {
-            var del = (Action<Window>)Delegate.CreateDelegate(typeof(Action<Window>), method);
+            var del = (Action<Window>)RiteProbe.Create(typeof(Action<Window>), method);
             return (root, _) => del(root);
         }
         
         if (paramType == typeof(Viewport))
         {
-            var del = (Action<Viewport>)Delegate.CreateDelegate(typeof(Action<Viewport>), method);
+            var del = (Action<Viewport>)RiteProbe.Create(typeof(Action<Viewport>), method);
             return (root, _) => del(root);
         }
         
         if (paramType == typeof(Node))
         {
-            var del = (Action<Node>)Delegate.CreateDelegate(typeof(Action<Node>), method);
+            var del = (Action<Node>)RiteProbe.Create(typeof(Action<Node>), method);
             return (root, _) => del(root);
         }
         
@@ -348,19 +348,19 @@ internal sealed partial class LiturgyNode
         
         if (paramType == typeof(Window))
         {
-            var del = (Action<Window, double>)Delegate.CreateDelegate(typeof(Action<Window, double>), method);
+            var del = (Action<Window, double>)RiteProbe.Create(typeof(Action<Window, double>), method);
             return del;
         }
         
         if (paramType == typeof(Viewport))
         {
-            var del = (Action<Viewport, double>)Delegate.CreateDelegate(typeof(Action<Viewport, double>), method);
+            var del = (Action<Viewport, double>)RiteProbe.Create(typeof(Action<Viewport, double>), method);
             return (root, delta) => del(root, delta);
         }
         
         if (paramType == typeof(Node))
         {
-            var del = (Action<Node, double>)Delegate.CreateDelegate(typeof(Action<Node, double>), method);
+            var del = (Action<Node, double>)RiteProbe.Create(typeof(Action<Node, double>), method);
             return (root, delta) => del(root, delta);
         }
         
@@ -377,19 +377,19 @@ internal sealed partial class LiturgyNode
         
         if (paramType == typeof(Window))
         {
-            var del = (Action<double, Window>)Delegate.CreateDelegate(typeof(Action<double, Window>), method);
+            var del = (Action<double, Window>)RiteProbe.Create(typeof(Action<double, Window>), method);
             return (root, delta) => del(delta, root);
         }
         
         if (paramType == typeof(Viewport))
         {
-            var del = (Action<double, Viewport>)Delegate.CreateDelegate(typeof(Action<double, Viewport>), method);
+            var del = (Action<double, Viewport>)RiteProbe.Create(typeof(Action<double, Viewport>), method);
             return (root, delta) => del(delta, root);
         }
         
         if (paramType == typeof(Node))
         {
-            var del = (Action<double, Node>)Delegate.CreateDelegate(typeof(Action<double, Node>), method);
+            var del = (Action<double, Node>)RiteProbe.Create(typeof(Action<double, Node>), method);
             return (root, delta) => del(delta, root);
         }
         
@@ -416,13 +416,13 @@ internal sealed partial class LiturgyNode
 
     private static Action<double, Node> CreateTargetedFrameCallback_NoParams(MethodInfo method)
     {
-        var del = (Action)Delegate.CreateDelegate(typeof(Action), method);
+        var del = (Action)RiteProbe.Create(typeof(Action), method);
         return (_, _) => del();
     }
 
     private static Action<double, Node> CreateTargetedFrameCallback_DeltaOnly(MethodInfo method)
     {
-        var del = (Action<double>)Delegate.CreateDelegate(typeof(Action<double>), method);
+        var del = (Action<double>)RiteProbe.Create(typeof(Action<double>), method);
         return (delta, _) => del(delta);
     }
 
@@ -458,6 +458,7 @@ internal sealed partial class LiturgyNode
         while (stack.Count > 0)
         {
             var node = stack.Pop();
+            if (IsShielded(node)) continue;
             TryAttachProcessHook(node, matchCounts);
 
             foreach (var child in node.GetChildren())
@@ -471,13 +472,13 @@ internal sealed partial class LiturgyNode
 
     private void OnNodeAddedForProcess(Node node)
     {
-        if (IsInternalNode(node)) return;
+        if (IsHiddenFromRites(node)) return;
         TryAttachProcessHook(node, matchCounts: null);
     }
 
     private void TryAttachProcessHook(Node node, Dictionary<ProcessCallbackEntry, int>? matchCounts)
     {
-        if (IsInternalNode(node)) return;
+        if (IsHiddenFromRites(node)) return;
         
         var path = node.GetPath().ToString();
         var needsProcess = false;

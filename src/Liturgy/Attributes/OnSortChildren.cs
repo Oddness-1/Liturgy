@@ -36,7 +36,7 @@ public static partial class Rite
     /// </example>
     [MeansImplicitUse]
     [AttributeUsage(AttributeTargets.Method, Inherited = false)]
-    public sealed class OnSortChildren : Attribute
+    public sealed class OnSortChildren : RiteAttribute
     {
         /// <summary>
         /// Comma-separated node paths. Fires only for these containers (null = all).

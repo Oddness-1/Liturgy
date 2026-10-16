@@ -64,7 +64,7 @@ public static partial class Rite
     /// </example>
     [MeansImplicitUse]
     [AttributeUsage(AttributeTargets.Method, Inherited = false)]
-    public sealed class OnPhysicsProcess : Attribute
+    public sealed class OnPhysicsProcess : RiteAttribute
     {
         /// <summary>
         /// Determines when the callback fires. Default is Global (fires once per tick).

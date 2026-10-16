@@ -95,6 +95,7 @@ internal sealed partial class LiturgyNode
         while (stack.Count > 0)
         {
             var node = stack.Pop();
+            if (IsShielded(node)) continue;
             SubscribeControl(node);
             foreach (var child in node.GetChildren()) stack.Push(child);
         }
@@ -102,7 +103,7 @@ internal sealed partial class LiturgyNode
     
     private void OnNodeAddedForControls(Node node)
     {
-        if (IsInternalNode(node)) return;
+        if (IsHiddenFromRites(node)) return;
         SubscribeControl(node);
     }
     

@@ -51,7 +51,7 @@ public static partial class Rite
     /// </example>
     [MeansImplicitUse]
     [AttributeUsage(AttributeTargets.Method, Inherited = false, AllowMultiple = true)]
-    public sealed class OnSignal(string signal) : Attribute
+    public sealed class OnSignal(string signal) : RiteAttribute
     {
         /// <summary>
         /// The signal's name as Godot knows it, e.g. <c>"timeout"</c> or <c>"value_changed"</c>.

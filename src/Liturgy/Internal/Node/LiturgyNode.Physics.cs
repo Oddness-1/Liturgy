@@ -70,7 +70,7 @@ internal sealed partial class LiturgyNode
             
             if (parameters.Length == 0)
             {
-                var del = (Action)Delegate.CreateDelegate(typeof(Action), method);
+                var del = (Action)RiteProbe.Create(typeof(Action), method);
                 LiturgyReport.AddControlHook("OnBodyEntered", methodName, attr.Target, attr.Exclude, attr.Priority, null);
                 AddPhysicsCallback(_bodyEnteredArea2DGlobalCallbacks, _bodyEnteredArea2DTargetedCallbacks, (Action<Node2D, Area2D>)((_, _) => del()), excludeSet, null, attr.Target);
                 AddPhysicsCallback(_bodyEnteredArea3DGlobalCallbacks, _bodyEnteredArea3DTargetedCallbacks, (Action<Node3D, Area3D>)((_, _) => del()), excludeSet, null, attr.Target);
@@ -131,7 +131,7 @@ internal sealed partial class LiturgyNode
             
             if (parameters.Length == 0)
             {
-                var del = (Action)Delegate.CreateDelegate(typeof(Action), method);
+                var del = (Action)RiteProbe.Create(typeof(Action), method);
                 LiturgyReport.AddControlHook("OnBodyExited", methodName, attr.Target, attr.Exclude, attr.Priority, null);
                 AddPhysicsCallback(_bodyExitedArea2DGlobalCallbacks, _bodyExitedArea2DTargetedCallbacks, (Action<Node2D, Area2D>)((_, _) => del()), excludeSet, null, attr.Target);
                 AddPhysicsCallback(_bodyExitedArea3DGlobalCallbacks, _bodyExitedArea3DTargetedCallbacks, (Action<Node3D, Area3D>)((_, _) => del()), excludeSet, null, attr.Target);
@@ -187,7 +187,7 @@ internal sealed partial class LiturgyNode
             
             if (parameters.Length == 0)
             {
-                var del = (Action)Delegate.CreateDelegate(typeof(Action), method);
+                var del = (Action)RiteProbe.Create(typeof(Action), method);
                 LiturgyReport.AddControlHook("OnAreaEntered", methodName, attr.Target, attr.Exclude, attr.Priority, null);
                 AddPhysicsCallback(_areaEnteredArea2DGlobalCallbacks, _areaEnteredArea2DTargetedCallbacks, (Action<Area2D, Area2D>)((_, _) => del()), excludeSet, null, attr.Target);
                 AddPhysicsCallback(_areaEnteredArea3DGlobalCallbacks, _areaEnteredArea3DTargetedCallbacks, (Action<Area3D, Area3D>)((_, _) => del()), excludeSet, null, attr.Target);
@@ -234,7 +234,7 @@ internal sealed partial class LiturgyNode
             
             if (parameters.Length == 0)
             {
-                var del = (Action)Delegate.CreateDelegate(typeof(Action), method);
+                var del = (Action)RiteProbe.Create(typeof(Action), method);
                 LiturgyReport.AddControlHook("OnAreaExited", methodName, attr.Target, attr.Exclude, attr.Priority, null);
                 AddPhysicsCallback(_areaExitedArea2DGlobalCallbacks, _areaExitedArea2DTargetedCallbacks, (Action<Area2D, Area2D>)((_, _) => del()), excludeSet, null, attr.Target);
                 AddPhysicsCallback(_areaExitedArea3DGlobalCallbacks, _areaExitedArea3DTargetedCallbacks, (Action<Area3D, Area3D>)((_, _) => del()), excludeSet, null, attr.Target);
@@ -370,6 +370,7 @@ internal sealed partial class LiturgyNode
         while (stack.Count > 0)
         {
             var node = stack.Pop();
+            if (IsShielded(node)) continue;
             if (node is Area2D a2) SubscribeArea2D(a2);
             else if (node is Area3D a3) SubscribeArea3D(a3);
             foreach (var child in node.GetChildren()) stack.Push(child);
@@ -378,7 +379,7 @@ internal sealed partial class LiturgyNode
 
     private void OnNodeAddedForPhysics(Node node)
     {
-        if (IsInternalNode(node)) return;
+        if (IsHiddenFromRites(node)) return;
         if (node is Area2D a2) SubscribeArea2D(a2);
         else if (node is Area3D a3) SubscribeArea3D(a3);
     }
@@ -391,7 +392,7 @@ internal sealed partial class LiturgyNode
 
     private void SubscribeArea2D(Area2D area)
     {
-        if (_subscribedArea2Ds.Contains(area) || IsInternalNode(area)) return;
+        if (_subscribedArea2Ds.Contains(area) || IsHiddenFromRites(area)) return;
         var path = area.GetPath().ToString();
         var hasAny = _bodyEnteredArea2DTargetedCallbacks.ContainsKey(path) || _bodyExitedArea2DTargetedCallbacks.ContainsKey(path) ||
                      _areaEnteredArea2DTargetedCallbacks.ContainsKey(path) || _areaExitedArea2DTargetedCallbacks.ContainsKey(path) ||
@@ -408,7 +409,7 @@ internal sealed partial class LiturgyNode
 
     private void SubscribeArea3D(Area3D area)
     {
-        if (_subscribedArea3Ds.Contains(area) || IsInternalNode(area)) return;
+        if (_subscribedArea3Ds.Contains(area) || IsHiddenFromRites(area)) return;
         var path = area.GetPath().ToString();
         var hasAny = _bodyEnteredArea3DTargetedCallbacks.ContainsKey(path) || _bodyExitedArea3DTargetedCallbacks.ContainsKey(path) ||
                      _areaEnteredArea3DTargetedCallbacks.ContainsKey(path) || _areaExitedArea3DTargetedCallbacks.ContainsKey(path) ||

@@ -43,7 +43,7 @@ public static partial class Rite
     /// </example>
     [MeansImplicitUse]
     [AttributeUsage(AttributeTargets.Method, Inherited = false)]
-    public sealed class OnAudioFinished : Attribute
+    public sealed class OnAudioFinished : RiteAttribute
     {
         /// <summary>
         /// Comma-separated node paths. Fires only for these audio players (null = all).

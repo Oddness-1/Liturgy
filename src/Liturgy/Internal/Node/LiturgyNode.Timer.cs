@@ -26,7 +26,7 @@ internal sealed partial class LiturgyNode
             
             if (parameters.Length == 0)
             {
-                var del = (Action)Delegate.CreateDelegate(typeof(Action), method);
+                var del = (Action)RiteProbe.Create(typeof(Action), method);
                 callback = _ => del();
             }
             else if (parameters.Length == 1 && typeof(Timer).IsAssignableFrom(parameters[0].ParameterType))
@@ -73,6 +73,7 @@ internal sealed partial class LiturgyNode
         while (stack.Count > 0)
         {
             var node = stack.Pop();
+            if (IsShielded(node)) continue;
             if (node is Timer timer) SubscribeTimer(timer);
             foreach (var child in node.GetChildren()) stack.Push(child);
         }
@@ -80,13 +81,13 @@ internal sealed partial class LiturgyNode
 
     private void OnNodeAddedForTimer(Node node)
     {
-        if (IsInternalNode(node)) return;
+        if (IsHiddenFromRites(node)) return;
         if (node is Timer timer) SubscribeTimer(timer);
     }
 
     private void SubscribeTimer(Timer timer)
     {
-        if (_subscribedTimers.Contains(timer) || IsInternalNode(timer)) return;
+        if (_subscribedTimers.Contains(timer) || IsHiddenFromRites(timer)) return;
     
         var path = timer.GetPath().ToString();
         var hasAny = _timeoutTargetedCallbacks.ContainsKey(path) || _timeoutGlobalCallbacks.Count > 0;

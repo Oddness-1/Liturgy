@@ -145,7 +145,7 @@ internal sealed partial class LiturgyNode
             if (parameters.Length == 0)
             {
                 // No parameters - register for all three types
-                var del = (Action)Delegate.CreateDelegate(typeof(Action), method);
+                var del = (Action)RiteProbe.Create(typeof(Action), method);
                 LiturgyReport.AddControlHook("OnMouseEntered", methodName, attr.Target, attr.Exclude, attr.Priority, null);
                 
                 AddMouseCallback(_mouseEnteredControlGlobalCallbacks, _mouseEnteredControlTargetedCallbacks, 
@@ -211,7 +211,7 @@ internal sealed partial class LiturgyNode
             
             if (parameters.Length == 0)
             {
-                var del = (Action)Delegate.CreateDelegate(typeof(Action), method);
+                var del = (Action)RiteProbe.Create(typeof(Action), method);
                 LiturgyReport.AddControlHook("OnMouseExited", methodName, attr.Target, attr.Exclude, attr.Priority, null);
                 
                 AddMouseCallback(_mouseExitedControlGlobalCallbacks, _mouseExitedControlTargetedCallbacks, 
@@ -372,7 +372,7 @@ internal sealed partial class LiturgyNode
         
         if (parameters.Length == 0)
         {
-            var del = (Action)Delegate.CreateDelegate(typeof(Action), method);
+            var del = (Action)RiteProbe.Create(typeof(Action), method);
             return (_ => del(), null);
         }
         
@@ -400,7 +400,7 @@ internal sealed partial class LiturgyNode
         
         if (parameters.Length == 0)
         {
-            var del = (Action)Delegate.CreateDelegate(typeof(Action), method);
+            var del = (Action)RiteProbe.Create(typeof(Action), method);
             return ((_, _) => del(), null, null);
         }
         
@@ -491,6 +491,7 @@ internal sealed partial class LiturgyNode
         while (stack.Count > 0)
         {
             var node = stack.Pop();
+            if (IsShielded(node)) continue;
             SubscribeFocusAndMouseNode(node);
             foreach (var child in node.GetChildren()) stack.Push(child);
         }
@@ -498,7 +499,7 @@ internal sealed partial class LiturgyNode
 
     private void OnNodeAddedForFocusAndMouse(Node node)
     {
-        if (IsInternalNode(node)) return;
+        if (IsHiddenFromRites(node)) return;
         SubscribeFocusAndMouseNode(node);
     }
 
@@ -531,7 +532,7 @@ internal sealed partial class LiturgyNode
     private void SubscribeControlForFocusAndMouse(Control control)
     {
         if (_subscribedControlsForFocus.Contains(control)) return;
-        if (IsInternalNode(control)) return;
+        if (IsHiddenFromRites(control)) return;
         
         var path = control.GetPath().ToString();
         var hasTargeted = _focusEnteredTargetedCallbacks.ContainsKey(path) ||
@@ -566,7 +567,7 @@ internal sealed partial class LiturgyNode
     private void SubscribeCollision2DForMouse(CollisionObject2D collision)
     {
         if (_subscribedCollision2DForMouse.Contains(collision)) return;
-        if (IsInternalNode(collision)) return;
+        if (IsHiddenFromRites(collision)) return;
         
         var path = collision.GetPath().ToString();
         var hasTargeted = _mouseEnteredCollision2DTargetedCallbacks.ContainsKey(path) ||
@@ -585,7 +586,7 @@ internal sealed partial class LiturgyNode
     private void SubscribeCollision3DForMouse(CollisionObject3D collision)
     {
         if (_subscribedCollision3DForMouse.Contains(collision)) return;
-        if (IsInternalNode(collision)) return;
+        if (IsHiddenFromRites(collision)) return;
         
         var path = collision.GetPath().ToString();
         var hasTargeted = _mouseEnteredCollision3DTargetedCallbacks.ContainsKey(path) ||

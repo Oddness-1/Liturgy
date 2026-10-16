@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Godot;
 using Liturgy;
@@ -33,6 +34,10 @@ public partial class Checks : Node
         await CheckInterfaceRites();
         await CheckStaticInterfaceHooks();
         await CheckDedicatedRites();
+        await CheckDiagnostics();
+        await CheckIgnoreGroup();
+        await CheckAssignNode();
+        await CheckHarness();
 
         GD.Print(_failures == 0 ? "[Checks] ALL PASSED" : $"[Checks] {_failures} FAILED");
         GetTree().Quit(_failures == 0 ? 0 : 1);
@@ -230,6 +235,158 @@ public partial class Checks : Node
         Expect("Dedicated rite: PerNode OnProcess stops while paused", Times("dedicated:pernode-process") == paused, $"{Times("dedicated:pernode-process") - paused} frames while paused");
         GetTree().Paused = false;
     }
+
+    private async Task CheckDiagnostics()
+    {
+        Expect("Diagnostics: on in editor runs", Rite.Diagnostics.IsEnabled);
+
+        var pressed = RiteNamed("CheckRites.DedicatedPressed");
+        Expect("Diagnostics: rites are listed and running", pressed is { Running: true });
+        Expect("Diagnostics: Description is read", RiteNamed("CheckRites.Described")?.Description == "Counts mobs that flee.");
+
+        var button = GetNode<Button>("ButtonHolder/MovingButton");
+        var other = new Button { Name = "OtherButton" };
+        AddChild(other);
+        await Frames();
+
+        Expect("Diagnostics: a targeted rite touches its target", pressed is not null && Rite.Diagnostics.Touching(button).Contains(pressed));
+        Expect("Diagnostics: ...and not another button", pressed is not null && !Rite.Diagnostics.Touching(other).Contains(pressed));
+        Expect("Diagnostics: FiresFor counts per node", pressed?.FiresFor(button) == 1, $"{pressed?.FiresFor(button)}");
+
+        var mob = GetNode<Mob>("Mob");
+        Expect("Diagnostics: OnSignal rites touch their emitter", Rite.Diagnostics.Touching(mob).Any(rite => rite.Name == "CheckRites.DiedWithSource"));
+        Expect("Diagnostics: PerNode OnProcess touches its node", Rite.Diagnostics.Touching(GetNode("Spinner")).Any(rite => rite.Name == "CheckRites.SpinnerProcess"));
+        Expect("Diagnostics: ...and not others", !Rite.Diagnostics.Touching(mob).Any(rite => rite.Name == "CheckRites.SpinnerProcess"));
+
+        var counts = Rite.Diagnostics.CountTouching();
+        Expect("Diagnostics: CountTouching agrees", pressed is not null && counts[pressed] == 1, pressed is null ? "" : $"{counts[pressed]}");
+        Expect("Diagnostics: Liturgy's own nodes are never touched", Rite.Diagnostics.Rites.SelectMany(Rite.Diagnostics.NodesTouchedBy).All(node => !node.GetPath().ToString().StartsWith("/root/Liturgy")));
+
+        var firings = Rite.Diagnostics.TotalFirings;
+        pressed!.Muted = true;
+        button.EmitSignal(BaseButton.SignalName.Pressed);
+        ExpectCount("Diagnostics: a muted rite doesn't run", "dedicated:pressed", 1);
+        pressed.Muted = false;
+        button.EmitSignal(BaseButton.SignalName.Pressed);
+        ExpectCount("Diagnostics: unmuted, it runs again", "dedicated:pressed", 2);
+        Expect("Diagnostics: firings are logged", Rite.Diagnostics.FiringsSince(firings).Any(firing => firing.Rite == pressed && firing.Node == button));
+    }
+
+    private async Task CheckIgnoreGroup()
+    {
+        var diedBefore = Times("died:none");
+        var addedBefore = Times("static:iface-added");
+        var readyBefore = Times("static:iface-ready");
+
+        var hidden = new Node { Name = "Hidden" };
+        hidden.AddToGroup(Rite.IGNORE_GROUP);
+        var mob = new Mob { Name = "HiddenMob" };
+        hidden.AddChild(mob);
+        hidden.AddChild(new ProbeTimer { Name = "HiddenProbe" });
+        AddChild(hidden);
+        await Frames();
+
+        mob.EmitSignal(Mob.SignalName.Died, 1);
+        ExpectCount("Ignore group: OnSignal doesn't fire under it", "died:none", diedBefore);
+        ExpectCount("Ignore group: OnNodeAdded doesn't see it", "static:iface-added", addedBefore);
+        ExpectCount("Ignore group: OnReady(PerNode) doesn't see it", "static:iface-ready", readyBefore);
+        Expect("Ignore group: nothing touches it", Rite.Diagnostics.Touching(mob).Count == 0);
+    }
+
+    private async Task CheckAssignNode()
+    {
+        Expect("AssignNode: a node at the path when /root is ready", CheckAssignments.Root == this);
+        Expect("AssignNode: a node of the wrong type isn't assigned", CheckAssignments.WrongType is null && Assignment("WrongType")?.Problem?.Contains("Spinner") == true, Assignment("WrongType")?.Problem ?? "");
+        Expect("AssignNode: listed in Rite.Diagnostics", Rite.Diagnostics.Assignments.Count(assignment => assignment.Name.StartsWith("CheckAssignments.")) == 4);
+        Expect("AssignNode: empty until a node arrives", CheckAssignments.Slot is null);
+
+        var plain = new Node { Name = "Slot" };
+        AddChild(plain);
+        await Frames();
+        Expect("AssignNode: interface: a node that doesn't implement it isn't assigned", CheckAssignments.Slot is null);
+        plain.Free();
+
+        var first = new Assignable { Name = "Slot" };
+        AddChild(first);
+        await Frames();
+        Expect("AssignNode: interface: a node arriving at the path is assigned", CheckAssignments.Slot == first);
+
+        RemoveChild(first);
+        Expect("AssignNode: emptied when its node leaves", CheckAssignments.Slot is null);
+        first.Free();
+
+        var second = new Assignable { Name = "Slot" };
+        AddChild(second);
+        await Frames();
+        Expect("AssignNode: assigned again when another arrives", CheckAssignments.Slot == second && Assignment("Slot")?.Assignments == 2, $"{Assignment("Slot")?.Assignments} assignments");
+        second.QueueFree();
+
+        var loose = new Camera2D { Name = "Camera" };
+        AddChild(loose);
+        await Frames();
+        Expect("AssignNode: pattern with %: a node without a unique name doesn't match", CheckAssignments.Camera is null);
+        loose.Free();
+
+        var level = Level();
+        AddChild(level);
+        await Frames();
+        Expect("AssignNode: pattern **/%Camera finds it in any scene", CheckAssignments.Camera == level.GetNode("%Camera"));
+
+        var other = Level();
+        AddChild(other);
+        level.Free();
+        await Frames(2);
+        Expect("AssignNode: pattern picks the next match when its node leaves", CheckAssignments.Camera == other.GetNode("%Camera"));
+        other.QueueFree();
+        await Frames();
+
+        static Node Level()
+        {
+            var level = new Node { Name = "Level" };
+            var camera = new Camera2D { Name = "Camera" };
+            level.AddChild(camera);
+            camera.Owner = level;
+            camera.UniqueNameInOwner = true;
+            return level;
+        }
+    }
+
+    private static AssignmentInfo? Assignment(string member) => Rite.Diagnostics.Assignments.FirstOrDefault(assignment => assignment.Name == $"CheckAssignments.{member}");
+
+    private async Task CheckHarness()
+    {
+        var window = GetTree().Root.GetNodeOrNull<Window>("Liturgy/Harness/Window");
+        Expect("Harness: built under /root/Liturgy", window is not null);
+        if (window is null) return;
+
+        var treeChanges = Times("tree:changed");
+
+        await PressToggle();
+        Expect("Harness: Alt+~ opens it", window.Visible);
+
+        var keys = Times("iface:key");
+        Input.ParseInputEvent(new InputEventKey { Keycode = Key.Q, PhysicalKeycode = Key.Q, Pressed = true });
+        Input.ParseInputEvent(new InputEventKey { Keycode = Key.Q, PhysicalKeycode = Key.Q, Pressed = false });
+        await Frames(3);
+        ExpectCount("Harness: the game gets no input while it's open", "iface:key", keys);
+
+        await PressToggle();
+        Expect("Harness: Alt+~ closes it", !window.Visible);
+        ExpectCount("Harness: using it never changes the game's tree", "tree:changed", treeChanges);
+    }
+
+    // Held across frames, as a real key press is: Godot reads queued input once per frame.
+    private async Task PressToggle()
+    {
+        Input.ParseInputEvent(new InputEventKey { Keycode = Key.Alt, PhysicalKeycode = Key.Alt, Pressed = true });
+        Input.ParseInputEvent(new InputEventKey { Keycode = Key.Quoteleft, PhysicalKeycode = Key.Quoteleft, AltPressed = true, Pressed = true });
+        await Frames(3);
+        Input.ParseInputEvent(new InputEventKey { Keycode = Key.Quoteleft, PhysicalKeycode = Key.Quoteleft, AltPressed = true, Pressed = false });
+        Input.ParseInputEvent(new InputEventKey { Keycode = Key.Alt, PhysicalKeycode = Key.Alt, Pressed = false });
+        await Frames(2);
+    }
+
+    private static RiteInfo? RiteNamed(string name) => Rite.Diagnostics.Rites.FirstOrDefault(rite => rite.Name == name);
 }
 
 public partial class Spinner : Node
@@ -362,4 +519,29 @@ internal static class CheckRites
 
     [Rite.OnProcess(Mode = Rite.FrameMode.PerNode)]
     private static void SpinnerProcess(Spinner spinner) => Checks.Count("dedicated:pernode-process");
+
+    [Rite.OnSignal(nameof(Mob.SignalName.Fled), Description = "Counts mobs that flee.")]
+    private static void Described() => Checks.Count("fled:described");
+
+    [Rite.OnTreeChanged]
+    private static void TreeChanged() => Checks.Count("tree:changed");
+}
+
+public interface IAssignable;
+
+public partial class Assignable : Node, IAssignable;
+
+internal static class CheckAssignments
+{
+    [Rite.AssignNode("Checks")]
+    public static Checks? Root;
+
+    [Rite.AssignNode("Checks/Spinner")]
+    public static Mob? WrongType;
+
+    [Rite.AssignNode("Checks/Slot")]
+    public static IAssignable? Slot;
+
+    [Rite.AssignNode("**/%Camera")]
+    public static Camera2D? Camera;
 }

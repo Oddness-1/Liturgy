@@ -22,14 +22,14 @@ internal static class DelegateFactory
         // No parameters - just invoke the method
         if (parameters.Length == 0)
         {
-            var del = (Action)Delegate.CreateDelegate(typeof(Action), method);
+            var del = (Action)RiteProbe.Create(typeof(Action), method);
             return _ => del();
         }
         
         // Parameter is exactly TBase - direct delegate
         if (actualType is null || actualType == typeof(TBase))
         {
-            return (Action<TBase>)Delegate.CreateDelegate(typeof(Action<TBase>), method);
+            return (Action<TBase>)RiteProbe.Create(typeof(Action<TBase>), method);
         }
         
         // Parameter is a subtype - use generic wrapper
@@ -56,7 +56,7 @@ internal static class DelegateFactory
     
     private static Action<TBase> BuildWrapper1<TBase, TActual>(MethodInfo method) where TBase : class where TActual : class
     {
-        var del = (Action<TActual>)Delegate.CreateDelegate(typeof(Action<TActual>), method);
+        var del = (Action<TActual>)RiteProbe.Create(typeof(Action<TActual>), method);
         return arg =>
         {
             if (arg is TActual typed)
@@ -75,14 +75,14 @@ internal static class DelegateFactory
         // No parameters
         if (parameters.Length == 0)
         {
-            var del = (Action)Delegate.CreateDelegate(typeof(Action), method);
+            var del = (Action)RiteProbe.Create(typeof(Action), method);
             return (_, _) => del();
         }
         
         // Signal only
         if (signalParamIndex is not null && nodeParamIndex is null)
         {
-            var del = (Action<TSignal>)Delegate.CreateDelegate(typeof(Action<TSignal>), method);
+            var del = (Action<TSignal>)RiteProbe.Create(typeof(Action<TSignal>), method);
             return (signal, _) => del(signal);
         }
         
@@ -104,12 +104,12 @@ internal static class DelegateFactory
         
         if (signalFirst)
         {
-            var del = (Action<TSignal, TBase>)Delegate.CreateDelegate(typeof(Action<TSignal, TBase>), method);
+            var del = (Action<TSignal, TBase>)RiteProbe.Create(typeof(Action<TSignal, TBase>), method);
             return del;
         }
         else
         {
-            var del = (Action<TBase, TSignal>)Delegate.CreateDelegate(typeof(Action<TBase, TSignal>), method);
+            var del = (Action<TBase, TSignal>)RiteProbe.Create(typeof(Action<TBase, TSignal>), method);
             return (signal, node) => del(node, signal);
         }
     }
@@ -138,7 +138,7 @@ internal static class DelegateFactory
     
     private static Action<TSignal, TBase> BuildWrapper2_SignalFirst<TSignal, TBase, TActual>(MethodInfo method) where TBase : class where TActual : class
     {
-        var del = (Action<TSignal, TActual>)Delegate.CreateDelegate(typeof(Action<TSignal, TActual>), method);
+        var del = (Action<TSignal, TActual>)RiteProbe.Create(typeof(Action<TSignal, TActual>), method);
         return (signal, node) =>
         {
             if (node is TActual typed) del(signal, typed);
@@ -147,7 +147,7 @@ internal static class DelegateFactory
     
     private static Action<TSignal, TBase> BuildWrapper2_NodeFirst<TSignal, TBase, TActual>(MethodInfo method) where TBase : class where TActual : class
     {
-        var del = (Action<TActual, TSignal>)Delegate.CreateDelegate(typeof(Action<TActual, TSignal>), method);
+        var del = (Action<TActual, TSignal>)RiteProbe.Create(typeof(Action<TActual, TSignal>), method);
         return (signal, node) =>
         {
             if (node is TActual typed) del(typed, signal);

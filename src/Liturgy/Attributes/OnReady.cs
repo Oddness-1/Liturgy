@@ -67,7 +67,7 @@ public static partial class Rite
     /// </example>
     [MeansImplicitUse]
     [AttributeUsage(AttributeTargets.Method, Inherited = false)]
-    public sealed class OnReady : Attribute
+    public sealed class OnReady : RiteAttribute
     {
         /// <summary>
         /// Determines when the callback fires. Default is RootReady (fires once when /root is ready).

@@ -189,23 +189,23 @@ internal sealed partial class LiturgyNode
         
         if (parameters.Length == 0)
         {
-            var del = (Action)Delegate.CreateDelegate(typeof(Action), method);
+            var del = (Action)RiteProbe.Create(typeof(Action), method);
             return _ => del();
         }
         
         var paramType = parameters[0].ParameterType;
         
-        if (paramType == typeof(Window)) return (Action<Window>)Delegate.CreateDelegate(typeof(Action<Window>), method);
+        if (paramType == typeof(Window)) return (Action<Window>)RiteProbe.Create(typeof(Action<Window>), method);
         
         if (paramType == typeof(Viewport))
         {
-            var del = (Action<Viewport>)Delegate.CreateDelegate(typeof(Action<Viewport>), method);
+            var del = (Action<Viewport>)RiteProbe.Create(typeof(Action<Viewport>), method);
             return root => del(root);
         }
         
         if (paramType == typeof(Node))
         {
-            var del = (Action<Node>)Delegate.CreateDelegate(typeof(Action<Node>), method);
+            var del = (Action<Node>)RiteProbe.Create(typeof(Action<Node>), method);
             return root => del(root);
         }
         
@@ -249,6 +249,8 @@ internal sealed partial class LiturgyNode
 
     private static void SubscribeToTargetNode(Node node, List<Action<Node>> callbacks)
     {
+        if (IsShielded(node)) return;
+
         if (node.IsNodeReady())
         {
             foreach (var callback in callbacks) RiteCall.Run(callback, node);
@@ -273,6 +275,7 @@ internal sealed partial class LiturgyNode
         while (stack.Count > 0)
         {
             var node = stack.Pop();
+            if (IsShielded(node)) continue;
             SubscribeNodeForPerNodeReady(node);
 
             foreach (var child in node.GetChildren())
@@ -284,13 +287,13 @@ internal sealed partial class LiturgyNode
 
     private void OnNodeAddedForPerNodeReady(Node node)
     {
-        if (IsInternalNode(node)) return;
+        if (IsHiddenFromRites(node)) return;
         SubscribeNodeForPerNodeReady(node);
     }
 
     private void SubscribeNodeForPerNodeReady(Node node)
     {
-        if (IsInternalNode(node) || !_subscribedForReady.Add(node)) return;
+        if (IsHiddenFromRites(node) || !_subscribedForReady.Add(node)) return;
 
         // Check if any PerNode callbacks match this node type
         var matchingCallbacks = _onReadyPerNodeCallbacks

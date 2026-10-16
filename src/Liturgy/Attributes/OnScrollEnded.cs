@@ -31,7 +31,7 @@ public static partial class Rite
     /// </example>
     [MeansImplicitUse]
     [AttributeUsage(AttributeTargets.Method, Inherited = false)]
-    public sealed class OnScrollEnded : Attribute
+    public sealed class OnScrollEnded : RiteAttribute
     {
         /// <summary>
         /// Comma-separated node paths. Fires only for these containers (null = all).

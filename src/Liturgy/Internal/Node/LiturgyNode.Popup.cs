@@ -125,7 +125,7 @@ internal sealed partial class LiturgyNode
         
         if (parameters.Length == 0)
         {
-            var del = (Action)Delegate.CreateDelegate(typeof(Action), method);
+            var del = (Action)RiteProbe.Create(typeof(Action), method);
             return (_ => del(), null);
         }
         
@@ -153,7 +153,7 @@ internal sealed partial class LiturgyNode
         
         if (parameters.Length == 0)
         {
-            var del = (Action)Delegate.CreateDelegate(typeof(Action), method);
+            var del = (Action)RiteProbe.Create(typeof(Action), method);
             return (_ => del(), null);
         }
         
@@ -181,7 +181,7 @@ internal sealed partial class LiturgyNode
         
         if (parameters.Length == 0)
         {
-            var del = (Action)Delegate.CreateDelegate(typeof(Action), method);
+            var del = (Action)RiteProbe.Create(typeof(Action), method);
             return (_ => del(), null);
         }
         
@@ -239,6 +239,7 @@ internal sealed partial class LiturgyNode
         while (stack.Count > 0)
         {
             var node = stack.Pop();
+            if (IsShielded(node)) continue;
             SubscribePopupNode(node);
             foreach (var child in node.GetChildren()) stack.Push(child);
         }
@@ -246,7 +247,7 @@ internal sealed partial class LiturgyNode
 
     private void OnNodeAddedForPopup(Node node)
     {
-        if (IsInternalNode(node)) return;
+        if (IsHiddenFromRites(node)) return;
         SubscribePopupNode(node);
     }
 
@@ -266,7 +267,7 @@ internal sealed partial class LiturgyNode
 
     private void SubscribePopup(Popup popup)
     {
-        if (_subscribedPopups.Contains(popup) || IsInternalNode(popup)) return;
+        if (_subscribedPopups.Contains(popup) || IsHiddenFromRites(popup)) return;
         
         var path = popup.GetPath().ToString();
         var hasAny = _popupHideTargetedCallbacks.ContainsKey(path) || _popupHideGlobalCallbacks.Count > 0;
@@ -295,7 +296,7 @@ internal sealed partial class LiturgyNode
 
     private void SubscribeWindowForClose(Window window)
     {
-        if (_subscribedWindowsForClose.Contains(window) || IsInternalNode(window)) return;
+        if (_subscribedWindowsForClose.Contains(window) || IsHiddenFromRites(window)) return;
         
         var path = window.GetPath().ToString();
         var hasAny = _closeRequestedTargetedCallbacks.ContainsKey(path) || _closeRequestedGlobalCallbacks.Count > 0;
@@ -324,7 +325,7 @@ internal sealed partial class LiturgyNode
 
     private void SubscribeDialog(AcceptDialog dialog)
     {
-        if (_subscribedDialogs.Contains(dialog) || IsInternalNode(dialog)) return;
+        if (_subscribedDialogs.Contains(dialog) || IsHiddenFromRites(dialog)) return;
         
         var path = dialog.GetPath().ToString();
         var hasConfirmed = _confirmedTargetedCallbacks.ContainsKey(path) || _confirmedGlobalCallbacks.Count > 0;

@@ -80,6 +80,8 @@ internal sealed partial class LiturgyNode
             Priority = priority
         };
 
+        RiteProbe.MarkRunning(method);
+
         var parameters = method.GetParameters();
         var typeFilter = parameters.Length > 0 && (typeof(Node).IsAssignableFrom(parameters[0].ParameterType) || parameters[0].ParameterType.IsInterface) ? parameters[0].ParameterType.Name : null;
         LiturgyReport.AddControlHook(hookName == "OnSignal" ? $"OnSignal(\"{signal}\")" : hookName, rite.MethodName, target, exclude, priority, typeFilter);
@@ -113,6 +115,7 @@ internal sealed partial class LiturgyNode
         while (stack.Count > 0)
         {
             var node = stack.Pop();
+            if (IsShielded(node)) continue;
             AttachRites(node, initial: true);
             foreach (var child in node.GetChildren()) stack.Push(child);
         }
@@ -122,12 +125,13 @@ internal sealed partial class LiturgyNode
 
     private void AttachRites(Node node, bool initial)
     {
-        if (IsInternalNode(node)) return;
+        if (IsHiddenFromRites(node)) return;
 
         var id = node.GetInstanceId();
 
         // Moved within the tree before the deferred check ran: reconnect so paths and targets are current.
         if (_signalConnections.Remove(id, out var previous)) Disconnect(previous);
+        _signalRitesByNode.Remove(id);
 
         var interfaceRites = InterfaceRitesFor(node.GetType());
         ConnectSignalRites(node, id, interfaceRites?.Signals);
@@ -152,6 +156,7 @@ internal sealed partial class LiturgyNode
             if (node is not null && node.IsInsideTree()) continue;
 
             if (_signalConnections.Remove(id, out var connections) && node is not null) Disconnect(connections);
+            _signalRitesByNode.Remove(id);
             DetachInterfaceInput(id);
         }
 
@@ -233,6 +238,7 @@ internal sealed partial class LiturgyNode
         }
 
         _signalConnections[id] = connections;
+        RecordSignalRites(id, groups.Values.SelectMany(group => group.Bindings).Select(binding => binding.Rite.Method));
     }
 
     private static Callable CreateSignalCallable(int arity, Action<Variant[]> handler) => arity switch

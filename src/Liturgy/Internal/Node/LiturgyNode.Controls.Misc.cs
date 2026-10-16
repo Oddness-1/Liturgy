@@ -149,7 +149,7 @@ internal sealed partial class LiturgyNode
         
         if (parameters.Length == 0)
         {
-            var del = (Action)Delegate.CreateDelegate(typeof(Action), method);
+            var del = (Action)RiteProbe.Create(typeof(Action), method);
             return (_ => del(), null);
         }
         
@@ -177,7 +177,7 @@ internal sealed partial class LiturgyNode
         
         if (parameters.Length == 0)
         {
-            var del = (Action)Delegate.CreateDelegate(typeof(Action), method);
+            var del = (Action)RiteProbe.Create(typeof(Action), method);
             return ((_, _) => del(), null);
         }
         
@@ -214,7 +214,7 @@ internal sealed partial class LiturgyNode
         {
             if (boolIdx is not null)
             {
-                var del = (Action<bool>)Delegate.CreateDelegate(typeof(Action<bool>), method);
+                var del = (Action<bool>)RiteProbe.Create(typeof(Action<bool>), method);
                 return ((b, _) => del(b), null);
             }
             else
@@ -246,7 +246,7 @@ internal sealed partial class LiturgyNode
         
         if (parameters.Length == 0)
         {
-            var del = (Action)Delegate.CreateDelegate(typeof(Action), method);
+            var del = (Action)RiteProbe.Create(typeof(Action), method);
             return _ => del();
         }
         
@@ -263,7 +263,7 @@ internal sealed partial class LiturgyNode
             return null;
         }
         
-        return (Action<ScrollContainer>)Delegate.CreateDelegate(typeof(Action<ScrollContainer>), method);
+        return (Action<ScrollContainer>)RiteProbe.Create(typeof(Action<ScrollContainer>), method);
     }
 
     private static (Action<Container>? Callback, Type? SourceType) CreateContainerCallback(MethodInfo method, string hookName)
@@ -273,7 +273,7 @@ internal sealed partial class LiturgyNode
         
         if (parameters.Length == 0)
         {
-            var del = (Action)Delegate.CreateDelegate(typeof(Action), method);
+            var del = (Action)RiteProbe.Create(typeof(Action), method);
             return (_ => del(), null);
         }
         
@@ -341,6 +341,7 @@ internal sealed partial class LiturgyNode
         while (stack.Count > 0)
         {
             var node = stack.Pop();
+            if (IsShielded(node)) continue;
             SubscribeMiscControlNode(node);
             foreach (var child in node.GetChildren()) stack.Push(child);
         }
@@ -348,7 +349,7 @@ internal sealed partial class LiturgyNode
 
     private void OnNodeAddedForMiscControls(Node node)
     {
-        if (IsInternalNode(node)) return;
+        if (IsHiddenFromRites(node)) return;
         SubscribeMiscControlNode(node);
     }
 
@@ -374,7 +375,7 @@ internal sealed partial class LiturgyNode
 
     private void SubscribeSlider(Slider slider)
     {
-        if (_subscribedSliders.Contains(slider) || IsInternalNode(slider)) return;
+        if (_subscribedSliders.Contains(slider) || IsHiddenFromRites(slider)) return;
         
         var path = slider.GetPath().ToString();
         var hasDragStarted = _dragStartedTargetedCallbacks.ContainsKey(path) || _dragStartedGlobalCallbacks.Count > 0;
@@ -430,7 +431,7 @@ internal sealed partial class LiturgyNode
 
     private void SubscribeScrollContainer(ScrollContainer scroll)
     {
-        if (_subscribedScrollContainers.Contains(scroll) || IsInternalNode(scroll)) return;
+        if (_subscribedScrollContainers.Contains(scroll) || IsHiddenFromRites(scroll)) return;
     
         var path = scroll.GetPath().ToString();
         var hasStarted = _scrollStartedTargetedCallbacks.ContainsKey(path) || _scrollStartedGlobalCallbacks.Count > 0;
@@ -484,7 +485,7 @@ internal sealed partial class LiturgyNode
 
     private void SubscribeContainer(Container container)
     {
-        if (_subscribedContainers.Contains(container) || IsInternalNode(container)) return;
+        if (_subscribedContainers.Contains(container) || IsHiddenFromRites(container)) return;
     
         var path = container.GetPath().ToString();
         var hasAny = _sortChildrenTargetedCallbacks.ContainsKey(path) || _sortChildrenGlobalCallbacks.Count > 0;

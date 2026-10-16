@@ -41,7 +41,7 @@ public static partial class Rite
     /// </example>
     [MeansImplicitUse]
     [AttributeUsage(AttributeTargets.Method, Inherited = false)]
-    public sealed class OnDragEnded : Attribute
+    public sealed class OnDragEnded : RiteAttribute
     {
         /// <summary>
         /// Comma-separated node paths. Fires only for these sliders (null = all).
