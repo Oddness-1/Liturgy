@@ -85,7 +85,8 @@ internal sealed partial class LiturgyNode
         public void Invoke(Node node, object? argument)
         {
             if (Excludes is not null && PathMatchesAnyExclude(node.GetPath().ToString(), Excludes)) return;
-            Method.Invoke(node, BindingFlags.DoNotWrapExceptions, null, Parameter is null ? [] : [argument], CultureInfo.InvariantCulture);
+            try { Method.Invoke(node, BindingFlags.DoNotWrapExceptions, null, Parameter is null ? [] : [argument], CultureInfo.InvariantCulture); }
+            catch (Exception exception) { RiteCall.Report(exception, MethodName); }
         }
     }
 

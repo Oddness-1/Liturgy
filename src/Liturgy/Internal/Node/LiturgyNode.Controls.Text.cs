@@ -219,14 +219,14 @@ internal sealed partial class LiturgyNode
             foreach (var (callback, excludes) in targeted)
             {
                 if (PathMatchesAnyExclude(path, excludes)) continue;
-                callback(text, source);
+                RiteCall.Run(callback, text, source);
             }
         }
         
         foreach (var (callback, excludes) in _textChangedLineEditGlobalCallbacks)
         {
             if (PathMatchesAnyExclude(path, excludes)) continue;
-            callback(text, source);
+            RiteCall.Run(callback, text, source);
         }
     }
     
@@ -237,14 +237,14 @@ internal sealed partial class LiturgyNode
             foreach (var (callback, excludes) in targeted)
             {
                 if (PathMatchesAnyExclude(path, excludes)) continue;
-                callback(text, source);
+                RiteCall.Run(callback, text, source);
             }
         }
         
         foreach (var (callback, excludes) in _textSubmittedGlobalCallbacks)
         {
             if (PathMatchesAnyExclude(path, excludes)) continue;
-            callback(text, source);
+            RiteCall.Run(callback, text, source);
         }
     }
     
@@ -255,14 +255,14 @@ internal sealed partial class LiturgyNode
             foreach (var (callback, excludes) in targeted)
             {
                 if (PathMatchesAnyExclude(path, excludes)) continue;
-                callback(source);
+                RiteCall.Run(callback, source);
             }
         }
         
         foreach (var (callback, excludes) in _textChangedTextEditGlobalCallbacks)
         {
             if (PathMatchesAnyExclude(path, excludes)) continue;
-            callback(source);
+            RiteCall.Run(callback, source);
         }
     }
 }

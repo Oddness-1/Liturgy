@@ -242,14 +242,14 @@ internal sealed partial class LiturgyNode
             foreach (var (callback, excludes) in targeted)
             {
                 if (PathMatchesAnyExclude(path, excludes)) continue;
-                callback(animName, player);
+                RiteCall.Run(callback, animName, player);
             }
         }
         
         foreach (var (callback, excludes) in _animationFinishedGlobalCallbacks)
         {
             if (PathMatchesAnyExclude(path, excludes)) continue;
-            callback(animName, player);
+            RiteCall.Run(callback, animName, player);
         }
     }
 
@@ -260,14 +260,14 @@ internal sealed partial class LiturgyNode
             foreach (var (callback, excludes) in targeted)
             {
                 if (PathMatchesAnyExclude(path, excludes)) continue;
-                callback(animName, player);
+                RiteCall.Run(callback, animName, player);
             }
         }
         
         foreach (var (callback, excludes) in _animationStartedGlobalCallbacks)
         {
             if (PathMatchesAnyExclude(path, excludes)) continue;
-            callback(animName, player);
+            RiteCall.Run(callback, animName, player);
         }
     }
 }

@@ -117,17 +117,17 @@ internal sealed partial class LiturgyNode
     private void OnNodeAddedCallback(Node node)
     {
         if (IsInternalNode(node)) return;
-        foreach (var callback in _nodeAddedCallbacks) callback(node);
+        foreach (var callback in _nodeAddedCallbacks) RiteCall.Run(callback, node);
     }
 
     private void OnNodeRemovedCallback(Node node)
     {
         if (IsInternalNode(node)) return;
-        foreach (var callback in _nodeRemovedCallbacks) callback(node);
+        foreach (var callback in _nodeRemovedCallbacks) RiteCall.Run(callback, node);
     }
 
     private void OnTreeChangedCallback()
     {
-        foreach (var callback in _treeChangedCallbacks) callback();
+        foreach (var callback in _treeChangedCallbacks) RiteCall.Run(callback);
     }
 }

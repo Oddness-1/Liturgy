@@ -392,7 +392,7 @@ internal sealed partial class LiturgyNode
                     foreach (var (callback, excludes) in targeted)
                     {
                         if (PathMatchesAnyExclude(path, excludes)) continue;
-                        callback(slider);
+                        RiteCall.Run(callback, slider);
                     }
                 }
                 
@@ -400,7 +400,7 @@ internal sealed partial class LiturgyNode
                 {
                     if (PathMatchesAnyExclude(path, excludes)) continue;
                     if (sourceType is not null && !sourceType.IsInstanceOfType(slider)) continue;
-                    callback(slider);
+                    RiteCall.Run(callback, slider);
                 }
             }));
         }
@@ -414,7 +414,7 @@ internal sealed partial class LiturgyNode
                     foreach (var (callback, excludes) in targeted)
                     {
                         if (PathMatchesAnyExclude(path, excludes)) continue;
-                        callback(valueChanged, slider);
+                        RiteCall.Run(callback, valueChanged, slider);
                     }
                 }
                 
@@ -422,7 +422,7 @@ internal sealed partial class LiturgyNode
                 {
                     if (PathMatchesAnyExclude(path, excludes)) continue;
                     if (sourceType is not null && !sourceType.IsInstanceOfType(slider)) continue;
-                    callback(valueChanged, slider);
+                    RiteCall.Run(callback, valueChanged, slider);
                 }
             }));
         }
@@ -448,14 +448,14 @@ internal sealed partial class LiturgyNode
                     foreach (var (callback, excludes) in targeted)
                     {
                         if (PathMatchesAnyExclude(path, excludes)) continue;
-                        callback(scroll);
+                        RiteCall.Run(callback, scroll);
                     }
                 }
             
                 foreach (var (callback, excludes) in _scrollStartedGlobalCallbacks)
                 {
                     if (PathMatchesAnyExclude(path, excludes)) continue;
-                    callback(scroll);
+                    RiteCall.Run(callback, scroll);
                 }
             }));
         }
@@ -469,14 +469,14 @@ internal sealed partial class LiturgyNode
                     foreach (var (callback, excludes) in targeted)
                     {
                         if (PathMatchesAnyExclude(path, excludes)) continue;
-                        callback(scroll);
+                        RiteCall.Run(callback, scroll);
                     }
                 }
             
                 foreach (var (callback, excludes) in _scrollEndedGlobalCallbacks)
                 {
                     if (PathMatchesAnyExclude(path, excludes)) continue;
-                    callback(scroll);
+                    RiteCall.Run(callback, scroll);
                 }
             }));
         }
@@ -498,7 +498,7 @@ internal sealed partial class LiturgyNode
                 foreach (var (callback, excludes) in targeted)
                 {
                     if (PathMatchesAnyExclude(path, excludes)) continue;
-                    callback(container);
+                    RiteCall.Run(callback, container);
                 }
             }
         
@@ -506,7 +506,7 @@ internal sealed partial class LiturgyNode
             {
                 if (PathMatchesAnyExclude(path, excludes)) continue;
                 if (sourceType is not null && !sourceType.IsInstanceOfType(container)) continue;
-                callback(container);
+                RiteCall.Run(callback, container);
             }
         }));
     }

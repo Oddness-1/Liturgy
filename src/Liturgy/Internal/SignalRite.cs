@@ -153,7 +153,8 @@ internal sealed class SignalRite
                 return;
             }
 
-            Rite.Method.Invoke(Rite.OnInstance ? node : null, BindingFlags.DoNotWrapExceptions, null, values, CultureInfo.InvariantCulture);
+            try { Rite.Method.Invoke(Rite.OnInstance ? node : null, BindingFlags.DoNotWrapExceptions, null, values, CultureInfo.InvariantCulture); }
+            catch (Exception exception) { RiteCall.Report(exception, Rite.MethodName); }
         }
     }
 }

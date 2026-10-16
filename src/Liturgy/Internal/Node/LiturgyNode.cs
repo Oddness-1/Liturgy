@@ -75,54 +75,33 @@ internal sealed partial class LiturgyNode : Node
         LiturgyReport.Reset();
         LiturgyReport.SetNodesInScene(CountNodesInTree(_root));
 
-        // Scan for AssignNode entries (executed when /root is ready)
-        SetupAssignNodeEntries();
-        
-        // OnReady hooks (Immediate, RootReady, and PerNode modes)
-        SetupOnReadyCallbacks();
-        
-        // Frame-based hooks
-        SetupFrameCallbacks();
-        
-        // Input hooks
-        SetupInputCallbacks();
-        
-        // Scene tree hooks
-        SetupSceneTreeCallbacks();
-        
-        // Tier 3: Type-filtered signal hooks
-        SetupButtonCallbacks();
-        
-        // Additional control hooks (LineEdit, Range, etc.)
-        SetupControlCallbacks();
-        
-        // Focus, mouse, resize, GUI input hooks
-        SetupFocusAndMouseCallbacks();
-        
-        // Visibility hooks (CanvasItem, Node3D)
-        SetupVisibilityCallbacks();
-        
-        // Animation hooks
-        SetupAnimationCallbacks();
-        
-        // Physics hooks (Area2D/3D body/area enter/exit)
-        SetupPhysicsCallbacks();
-        
-        // Timer hooks
-        SetupTimerCallbacks();
-        
-        // Popup and dialog hooks
-        SetupPopupCallbacks();
-        
-        // Audio hooks
-        SetupAudioCallbacks();
-        
-        // Misc control hooks (slider drag, scroll, container sort)
-        SetupMiscControlCallbacks();
+        // Each category is set up on its own, so a failure in one is reported and the rest still work.
+        Action[] setups =
+        [
+            SetupAssignNodeEntries,
+            SetupOnReadyCallbacks,
+            SetupFrameCallbacks,
+            SetupInputCallbacks,
+            SetupSceneTreeCallbacks,
+            SetupButtonCallbacks,
+            SetupControlCallbacks,
+            SetupFocusAndMouseCallbacks,
+            SetupVisibilityCallbacks,
+            SetupAnimationCallbacks,
+            SetupPhysicsCallbacks,
+            SetupTimerCallbacks,
+            SetupPopupCallbacks,
+            SetupAudioCallbacks,
+            SetupMiscControlCallbacks,
+            SetupSignalCallbacks
+        ];
 
-        // OnSignal, the rites built on it, and rites on interface members
-        SetupSignalCallbacks();
-        
+        foreach (var setup in setups)
+        {
+            try { setup(); }
+            catch (Exception exception) { GD.PushError($"[Liturgy] {setup.Method.Name} failed; those rites won't run. {exception}"); }
+        }
+
         // Generate report (debug mode only)
         LiturgyReport.Generate();
     }
@@ -214,6 +193,12 @@ internal sealed partial class LiturgyNode : Node
             {
                 if (!HasHookAttribute(method)) continue;
 
+                if (IsOpenGenericClass(type))
+                {
+                    GD.PushError($"[Liturgy] {type.FullName}.{method.Name}: rites can't be declared in a generic class, which has no type arguments to call them with. Skipping.");
+                    continue;
+                }
+
                 if (method.IsStatic) methods.Add(method);
                 else if (type.IsInterface) interfaceMethods.Add(method);
                 else GD.PushWarning($"[Liturgy] {type.FullName}.{method.Name} must be static, or an interface member. Skipping.");
@@ -222,6 +207,11 @@ internal sealed partial class LiturgyNode : Node
 
         return (methods, interfaceMethods);
     }
+
+    /// <summary>
+    /// A class (or a class nested in one) with unbound type parameters. Generic interfaces are fine: each implementation closes them.
+    /// </summary>
+    private static bool IsOpenGenericClass(Type type) => type.ContainsGenericParameters && !type.IsInterface;
 
     private static bool HasHookAttribute(MethodInfo method)
     {

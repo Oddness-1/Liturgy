@@ -321,14 +321,14 @@ internal sealed partial class LiturgyNode
             foreach (var (callback, excludes) in targetedCallbacks)
             {
                 if (PathMatchesAnyExclude(path, excludes)) continue;
-                callback(button);
+                RiteCall.Run(callback, button);
             }
         }
 
         foreach (var (callback, excludes) in _buttonPressedGlobalCallbacks)
         {
             if (PathMatchesAnyExclude(path, excludes)) continue;
-            callback(button);
+            RiteCall.Run(callback, button);
         }
     }
 
@@ -341,14 +341,14 @@ internal sealed partial class LiturgyNode
             foreach (var (callback, excludes) in targetedCallbacks)
             {
                 if (PathMatchesAnyExclude(path, excludes)) continue;
-                callback(button);
+                RiteCall.Run(callback, button);
             }
         }
 
         foreach (var (callback, excludes) in _buttonUpGlobalCallbacks)
         {
             if (PathMatchesAnyExclude(path, excludes)) continue;
-            callback(button);
+            RiteCall.Run(callback, button);
         }
     }
 
@@ -361,14 +361,14 @@ internal sealed partial class LiturgyNode
             foreach (var (callback, excludes) in targetedCallbacks)
             {
                 if (PathMatchesAnyExclude(path, excludes)) continue;
-                callback(button);
+                RiteCall.Run(callback, button);
             }
         }
 
         foreach (var (callback, excludes) in _buttonDownGlobalCallbacks)
         {
             if (PathMatchesAnyExclude(path, excludes)) continue;
-            callback(button);
+            RiteCall.Run(callback, button);
         }
     }
 
@@ -381,14 +381,14 @@ internal sealed partial class LiturgyNode
             foreach (var (callback, excludes) in targetedCallbacks)
             {
                 if (PathMatchesAnyExclude(path, excludes)) continue;
-                callback(pressed, button);
+                RiteCall.Run(callback, pressed, button);
             }
         }
 
         foreach (var (callback, excludes) in _buttonToggledGlobalCallbacks)
         {
             if (PathMatchesAnyExclude(path, excludes)) continue;
-            callback(pressed, button);
+            RiteCall.Run(callback, pressed, button);
         }
     }
 }

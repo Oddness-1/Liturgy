@@ -100,14 +100,14 @@ internal sealed partial class LiturgyNode
                 foreach (var (callback, excludes) in targeted)
                 {
                     if (PathMatchesAnyExclude(path, excludes)) continue;
-                    callback(timer);
+                    RiteCall.Run(callback, timer);
                 }
             }
         
             foreach (var (callback, excludes) in _timeoutGlobalCallbacks)
             {
                 if (PathMatchesAnyExclude(path, excludes)) continue;
-                callback(timer);
+                RiteCall.Run(callback, timer);
             }
         }));
     }

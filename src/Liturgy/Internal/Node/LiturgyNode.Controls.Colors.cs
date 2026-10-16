@@ -104,7 +104,7 @@ internal sealed partial class LiturgyNode
             foreach (var (callback, excludes) in targeted)
             {
                 if (PathMatchesAnyExclude(path, excludes)) continue;
-                callback(color, source);
+                RiteCall.Run(callback, color, source);
             }
         }
         
@@ -112,7 +112,7 @@ internal sealed partial class LiturgyNode
         {
             if (PathMatchesAnyExclude(path, excludes)) continue;
             if (sourceType is not null && !sourceType.IsInstanceOfType(source)) continue;
-            callback(color, source);
+            RiteCall.Run(callback, color, source);
         }
     }
     
@@ -123,7 +123,7 @@ internal sealed partial class LiturgyNode
             foreach (var (callback, excludes) in targeted)
             {
                 if (PathMatchesAnyExclude(path, excludes)) continue;
-                callback(color, source);
+                RiteCall.Run(callback, color, source);
             }
         }
         
@@ -131,7 +131,7 @@ internal sealed partial class LiturgyNode
         {
             if (PathMatchesAnyExclude(path, excludes)) continue;
             if (sourceType is not null && !sourceType.IsInstanceOfType(source)) continue;
-            callback(color, source);
+            RiteCall.Run(callback, color, source);
         }
     }
 }

@@ -563,29 +563,29 @@ internal sealed partial class LiturgyNode
     private static void OnProcessHookFired(double delta, Node target, List<ProcessCallbackEntry> entries)
     {
         var path = target.GetPath().ToString();
-        foreach (var entry in entries.Where(entry => MatchesEntry(target, path, entry))) entry.Callback(delta, target);
+        foreach (var entry in entries.Where(entry => MatchesEntry(target, path, entry))) RiteCall.Run(entry.Callback, delta, target);
     }
 
     public override void _Process(double delta)
     {
-        foreach (var callback in _processGlobalCallbacks) callback(_root, delta);
+        foreach (var callback in _processGlobalCallbacks) RiteCall.Run(callback, _root, delta);
     }
 
     public override void _PhysicsProcess(double delta)
     {
-        foreach (var callback in _physicsProcessGlobalCallbacks) callback(_root, delta);
+        foreach (var callback in _physicsProcessGlobalCallbacks) RiteCall.Run(callback, _root, delta);
     }
     
     private void OnProcessFrame()
     {
         var delta = GetProcessDeltaTime();
-        foreach (var callback in _processWhilePausedCallbacks) callback(_root, delta);
+        foreach (var callback in _processWhilePausedCallbacks) RiteCall.Run(callback, _root, delta);
     }
 
     private void OnPhysicsFrame()
     {
         var delta = GetPhysicsProcessDeltaTime();
-        foreach (var callback in _physicsProcessWhilePausedCallbacks) callback(_root, delta);
+        foreach (var callback in _physicsProcessWhilePausedCallbacks) RiteCall.Run(callback, _root, delta);
     }
 }
 

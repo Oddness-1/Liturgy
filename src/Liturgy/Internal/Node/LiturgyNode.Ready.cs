@@ -113,7 +113,7 @@ internal sealed partial class LiturgyNode
         foreach (var (method, _) in immediateEntries.OrderBy(e => e.Priority))
         {
             var callback = CreateWindowCallback(method);
-            callback?.Invoke(_root);
+            if (callback is not null) RiteCall.Run(callback, _root);
         }
 
         // === ROOTREADY MODE (no target) ===
@@ -173,7 +173,7 @@ internal sealed partial class LiturgyNode
         // 2. Fire RootReady (no target) callbacks
         foreach (var callback in _onReadyRootReadyCallbacks)
         {
-            callback(_root);
+            RiteCall.Run(callback, _root);
         }
         
         // 3. Subscribe to targeted nodes for RootReady mode
@@ -251,7 +251,7 @@ internal sealed partial class LiturgyNode
     {
         if (node.IsNodeReady())
         {
-            foreach (var callback in callbacks) callback(node);
+            foreach (var callback in callbacks) RiteCall.Run(callback, node);
         }
         else
         {
@@ -259,7 +259,7 @@ internal sealed partial class LiturgyNode
             {
                 foreach (var callback in callbacks)
                 {
-                    callback(node);
+                    RiteCall.Run(callback, node);
                 }
             };
         }
@@ -312,7 +312,7 @@ internal sealed partial class LiturgyNode
         foreach (var (callback, excludes, _) in callbacks)
         {
             if (PathMatchesAnyExclude(path, excludes)) continue;
-            callback(node);
+            RiteCall.Run(callback, node);
         }
     }
 }

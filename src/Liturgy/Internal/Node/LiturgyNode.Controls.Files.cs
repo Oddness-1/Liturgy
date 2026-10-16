@@ -145,14 +145,14 @@ internal sealed partial class LiturgyNode
             foreach (var (callback, excludes) in targeted)
             {
                 if (PathMatchesAnyExclude(path, excludes)) continue;
-                callback(filePath, source);
+                RiteCall.Run(callback, filePath, source);
             }
         }
         
         foreach (var (callback, excludes) in _fileSelectedGlobalCallbacks)
         {
             if (PathMatchesAnyExclude(path, excludes)) continue;
-            callback(filePath, source);
+            RiteCall.Run(callback, filePath, source);
         }
     }
     
@@ -163,14 +163,14 @@ internal sealed partial class LiturgyNode
             foreach (var (callback, excludes) in targeted)
             {
                 if (PathMatchesAnyExclude(path, excludes)) continue;
-                callback(dirPath, source);
+                RiteCall.Run(callback, dirPath, source);
             }
         }
         
         foreach (var (callback, excludes) in _dirSelectedGlobalCallbacks)
         {
             if (PathMatchesAnyExclude(path, excludes)) continue;
-            callback(dirPath, source);
+            RiteCall.Run(callback, dirPath, source);
         }
     }
 }

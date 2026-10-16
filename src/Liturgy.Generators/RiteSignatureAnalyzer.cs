@@ -36,8 +36,12 @@ public sealed class RiteSignatureAnalyzer : DiagnosticAnalyzer
         "LIT005", "OnSignal without a signal name", "[Rite.OnSignal] on '{0}' needs a signal name",
         CATEGORY, DiagnosticSeverity.Error, isEnabledByDefault: true);
 
+    internal static readonly DiagnosticDescriptor IN_GENERIC_CLASS = new(
+        "LIT006", "Rite in a generic class", "'{0}' is in a generic class, so [Rite.{1}] never runs; Liturgy has no type arguments to use. Move it to a non-generic class.",
+        CATEGORY, DiagnosticSeverity.Error, isEnabledByDefault: true);
+
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } =
-        [NOT_STATIC, BAD_PARAMETERS, NOT_ON_INTERFACES, TARGET_ON_INTERFACE, NO_SIGNAL_NAME];
+        [NOT_STATIC, BAD_PARAMETERS, NOT_ON_INTERFACES, TARGET_ON_INTERFACE, NO_SIGNAL_NAME, IN_GENERIC_CLASS];
 
     public override void Initialize(AnalysisContext context)
     {
@@ -51,6 +55,7 @@ public sealed class RiteSignatureAnalyzer : DiagnosticAnalyzer
 
             var rules = new RiteRules(start.Compilation);
             start.RegisterSymbolAction(symbol => AnalyzeMethod(symbol, rite, rules), SymbolKind.Method);
+            start.RegisterSymbolAction(symbol => AnalyzeAssignNode(symbol, rite), SymbolKind.Field, SymbolKind.Property);
         });
     }
 
@@ -68,6 +73,12 @@ public sealed class RiteSignatureAnalyzer : DiagnosticAnalyzer
 
             var location = attribute.ApplicationSyntaxReference?.GetSyntax(context.CancellationToken).GetLocation() ?? method.Locations.FirstOrDefault();
             var onInterface = method.ContainingType.TypeKind == TypeKind.Interface;
+
+            if (IsInGenericClass(method.ContainingType))
+            {
+                context.ReportDiagnostic(Diagnostic.Create(IN_GENERIC_CLASS, location, method.Name, name));
+                continue;
+            }
 
             if (!method.IsStatic && !onInterface)
             {
@@ -92,6 +103,34 @@ public sealed class RiteSignatureAnalyzer : DiagnosticAnalyzer
             if (rules.Check(name, attribute, method) is { } expected)
                 context.ReportDiagnostic(Diagnostic.Create(BAD_PARAMETERS, location, name, method.Name, expected));
         }
+    }
+
+    private static void AnalyzeAssignNode(SymbolAnalysisContext context, INamedTypeSymbol rite)
+    {
+        if (!IsInGenericClass(context.Symbol.ContainingType)) return;
+
+        foreach (var attribute in context.Symbol.GetAttributes())
+        {
+            if (attribute.AttributeClass is not { Name: "AssignNode" } attributeClass || !SymbolEqualityComparer.Default.Equals(attributeClass.ContainingType, rite)) continue;
+
+            var location = attribute.ApplicationSyntaxReference?.GetSyntax(context.CancellationToken).GetLocation() ?? context.Symbol.Locations.FirstOrDefault();
+            context.ReportDiagnostic(Diagnostic.Create(IN_GENERIC_CLASS, location, context.Symbol.Name, "AssignNode"));
+        }
+    }
+
+    /// <summary>
+    /// A class with type parameters, or nested in one. Generic interfaces are fine: each implementation supplies the arguments.
+    /// </summary>
+    private static bool IsInGenericClass(INamedTypeSymbol? type)
+    {
+        if (type is null || type.TypeKind == TypeKind.Interface) return false;
+
+        for (var current = type; current is not null; current = current.ContainingType)
+        {
+            if (current.TypeParameters.Length > 0) return true;
+        }
+
+        return false;
     }
 
     private static void AnalyzeInterfaceRite(SymbolAnalysisContext context, AttributeData attribute, string name, IMethodSymbol method, Location? location, RiteRules rules)

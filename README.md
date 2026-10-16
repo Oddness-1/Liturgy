@@ -67,10 +67,11 @@ public static class Feedback
 
 ### How it attaches
 
-The package ships a small source generator that adds a module initializer to your game assembly. Depending on when
-Godot first runs your C#, it either registers a `Liturgy` autoload in memory (nothing is written to `project.godot`),
-or adds the `Liturgy` node to `/root` directly. Either way Liturgy is ready before the main scene, like an autoload
-you never have to configure. In the editor it does nothing.
+The package ships a small source generator that puts a hidden attribute on each of your Godot classes, the same way
+Godot's own generator adds `[ScriptPath]`. It adds no members and you never see it in your files. When Godot loads your
+first C# script, it builds that attribute, and Liturgy adds a `Liturgy` node to `/root`, ahead of your autoloads and
+the main scene. Nothing is written to `project.godot`. This works the same when running from the editor and in an
+exported game. In the editor itself it does nothing.
 
 Only assemblies that reference Liturgy are scanned for hooks, so large dependencies cost nothing at startup. A
 library of rites that your game references is found even if .NET hasn't loaded it yet when Liturgy starts.
@@ -103,6 +104,7 @@ library of rites that your game references is found even if .NET hasn't loaded i
 - [Debug Mode](#debug-mode)
 - [Performance Notes](#performance-notes)
 - [Compile-Time Checks](#compile-time-checks)
+- [When a Rite Throws](#when-a-rite-throws)
 - [Rider and ReSharper](#rider-and-resharper)
 - [Suppressing Warnings](#suppressing-warnings)
 - [Building from Source](#building-from-source)
@@ -765,9 +767,27 @@ The package's analyzer flags rites that can never run, as you type:
 | LIT003 | Error | Rite that isn't supported on interface members |
 | LIT004 | Warning | `Target` on an interface rite, where it's ignored |
 | LIT005 | Error | `OnSignal` without a signal name |
+| LIT006 | Error | A rite or `AssignNode` in a generic class, which Liturgy can't call or assign |
+| LIT007 | Warning | A newer Godot than Liturgy was tested with (see below) |
 
 `OnSignal` is checked against engine signals and your own `[Signal]` delegates when the source parameter's type
 declares the signal; otherwise it's checked at runtime and reported in the debug report.
+
+**After a Godot upgrade:** Liturgy starts by having Godot build an attribute while it loads scripts. If a Godot
+release ever stops doing that, Liturgy never starts, and none of its code runs to tell you. LIT007 warns at build time
+when your Godot version is newer than the one Liturgy was tested with; run the game once and check that
+`/root/Liturgy` exists.
+
+It also silences warnings that are wrong about Liturgy's members: `CS0649` (never assigned) and `IDE0044` (make
+readonly) on `AssignNode` fields, and `IDE0051`/`IDE0052` (unused) on rites and `AssignNode` members.
+
+---
+
+## When a Rite Throws
+
+An exception in a rite is logged with its stack trace, and the other rites on the same event still run, as they would
+as separate signal connections. A rite or `AssignNode` that Liturgy can't use at all (a generic class, a bad signature)
+is skipped and reported; the rest of Liturgy carries on.
 
 ---
 

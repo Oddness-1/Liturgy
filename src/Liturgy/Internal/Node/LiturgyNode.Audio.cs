@@ -169,14 +169,14 @@ internal sealed partial class LiturgyNode
                 foreach (var (callback, excludes) in targeted)
                 {
                     if (PathMatchesAnyExclude(path, excludes)) continue;
-                    callback(player);
+                    RiteCall.Run(callback, player);
                 }
             }
 
             foreach (var (callback, excludes) in _audioFinishedGlobalCallbacks)
             {
                 if (PathMatchesAnyExclude(path, excludes)) continue;
-                callback(player);
+                RiteCall.Run(callback, player);
             }
         }));
     }
@@ -197,14 +197,14 @@ internal sealed partial class LiturgyNode
                 foreach (var (callback, excludes) in targeted)
                 {
                     if (PathMatchesAnyExclude(path, excludes)) continue;
-                    callback(player);
+                    RiteCall.Run(callback, player);
                 }
             }
 
             foreach (var (callback, excludes) in _audio2DFinishedGlobalCallbacks)
             {
                 if (PathMatchesAnyExclude(path, excludes)) continue;
-                callback(player);
+                RiteCall.Run(callback, player);
             }
         }));
     }
@@ -225,14 +225,14 @@ internal sealed partial class LiturgyNode
                 foreach (var (callback, excludes) in targeted)
                 {
                     if (PathMatchesAnyExclude(path, excludes)) continue;
-                    callback(player);
+                    RiteCall.Run(callback, player);
                 }
             }
 
             foreach (var (callback, excludes) in _audio3DFinishedGlobalCallbacks)
             {
                 if (PathMatchesAnyExclude(path, excludes)) continue;
-                callback(player);
+                RiteCall.Run(callback, player);
             }
         }));
     }

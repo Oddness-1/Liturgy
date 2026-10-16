@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using Godot;
 using static Liturgy.Rite;
@@ -23,6 +24,15 @@ internal sealed partial class LiturgyNode
 
     private void ScanTypeForAssignNode(Type type)
     {
+        // A static member of an open generic class has no single value to assign.
+        if (IsOpenGenericClass(type))
+        {
+            const BindingFlags STATIC = BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly;
+            foreach (var member in type.GetMembers(STATIC).Where(member => member.IsDefined(typeof(AssignNode))))
+                GD.PushError($"[Liturgy] [Rite.AssignNode] '{type.FullName}.{member.Name}' is in a generic class, which has no single value to assign. Skipping.");
+            return;
+        }
+
         // Scan static fields
         foreach (var field in type.GetFields(BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic))
         {

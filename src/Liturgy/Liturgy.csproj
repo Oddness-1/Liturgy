@@ -13,7 +13,7 @@
     <!-- NuGet packaging. Pack with: dotnet pack -c ExportRelease (Debug builds reference GodotSharpEditor). -->
     <IsPackable>true</IsPackable>
     <PackageId>Liturgy.Godot</PackageId>
-    <Version>1.0.0</Version>
+    <Version>0.1.0</Version>
     <Authors>Oddness</Authors>
     <Description>Attribute-based global hooks for Godot C#. Mark static methods with [Rite.OnReady], [Rite.OnButtonPressed], [Rite.OnProcess] and more, and Liturgy wires them up across the whole scene tree. No addon, no autoload, no setup.</Description>
     <PackageTags>godot;godot4;gamedev;attributes;hooks;signals;source-generator</PackageTags>

@@ -1,4 +1,4 @@
-## Release 1.0
+## Release 0.1.0
 
 ### New Rules
 
@@ -9,3 +9,5 @@ LIT002 | Liturgy | Error | RiteSignatureAnalyzer: parameters that don't fit the 
 LIT003 | Liturgy | Error | RiteSignatureAnalyzer: a rite that isn't supported on interface members
 LIT004 | Liturgy | Warning | RiteSignatureAnalyzer: Target on an interface rite
 LIT005 | Liturgy | Error | RiteSignatureAnalyzer: OnSignal without a signal name
+LIT006 | Liturgy | Error | RiteSignatureAnalyzer: a rite or AssignNode in a generic class
+LIT007 | Liturgy | Warning | GodotVersionAnalyzer: a Godot version newer than Liturgy was tested with

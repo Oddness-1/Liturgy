@@ -99,7 +99,7 @@ internal sealed partial class LiturgyNode
     {
         foreach (var callback in _inputCallbacks)
         {
-            callback(@event);
+            RiteCall.Run(callback, @event);
         }
 
         DispatchInterfaceInput(_interfaceInput, @event);
@@ -109,7 +109,7 @@ internal sealed partial class LiturgyNode
     {
         foreach (var callback in _unhandledInputCallbacks)
         {
-            callback(@event);
+            RiteCall.Run(callback, @event);
         }
 
         DispatchInterfaceInput(_interfaceUnhandledInput, @event);
@@ -119,7 +119,7 @@ internal sealed partial class LiturgyNode
     {
         foreach (var callback in _unhandledKeyInputCallbacks)
         {
-            callback(@event);
+            RiteCall.Run(callback, @event);
         }
 
         DispatchInterfaceInput(_interfaceUnhandledKeyInput, @event);
