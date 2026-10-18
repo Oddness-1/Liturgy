@@ -2,6 +2,8 @@
 
 Attribute-based hooks for Godot C#. Write static methods, add attributes, and Liturgy wires them up automatically — globally, across your entire project.
 
+*Liturgy is an independent project, not affiliated with or endorsed by the Godot Foundation.*
+
 ## Why Liturgy?
 
 In Godot, applying behavior to many nodes is tedious:
