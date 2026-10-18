@@ -19,6 +19,14 @@
     <PackageTags>godot;godot4;gamedev;attributes;hooks;signals;source-generator</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageProjectUrl>https://github.com/Oddness-1/Liturgy</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/Oddness-1/Liturgy.git</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <Copyright>Copyright (c) 2025-2026 Oddness</Copyright>
+    <PackageReleaseNotes>First public release.</PackageReleaseNotes>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <PackageIcon>icon.png</PackageIcon>
     <PackageOutputPath>S:\Game Dev\Libraries\NuGet (Local)</PackageOutputPath>
   </PropertyGroup>
 
@@ -39,6 +47,7 @@
           Pack="true"
           PackagePath="analyzers/dotnet/cs"
           Visible="false" />
+    <None Include="..\..\icon.png" Pack="true" PackagePath="\" Visible="false" />
   </ItemGroup>
 
 </Project>
