@@ -340,6 +340,36 @@ public partial class Checks : Node
         other.QueueFree();
         await Frames();
 
+        // An interface property: each implementing node holds its own, filled before its _Ready even when the
+        // camera comes later in the same scene.
+        var held = Rite.Diagnostics.Assignments.FirstOrDefault(assignment => assignment.Name == "IHoldsCamera.HeldCamera");
+        Expect("AssignNode: interface property listed, per node", held is { PerNode: true });
+
+        var scene = new Node { Name = "Level" };
+        var early = new CameraHolder { Name = "Early" };
+        scene.AddChild(early);
+        var sceneCamera = new Camera2D { Name = "Camera" };
+        scene.AddChild(sceneCamera);
+        sceneCamera.Owner = scene;
+        sceneCamera.UniqueNameInOwner = true;
+        AddChild(scene);
+        await Frames();
+        Expect("AssignNode: interface property filled before the holder's _Ready", early.CameraAtReady == sceneCamera);
+
+        var late = new CameraHolder { Name = "Late" };
+        AddChild(late);
+        await Frames();
+        Expect("AssignNode: interface property: a holder arriving later is filled", late.HeldCamera == sceneCamera && held?.Holders.Count == 2, $"{held?.Holders.Count} holders");
+
+        RemoveChild(late);
+        Expect("AssignNode: interface property emptied when its holder leaves", late.HeldCamera is null && held?.Holders.Count == 1, $"{held?.Holders.Count} holders");
+        late.Free();
+
+        sceneCamera.Free();
+        Expect("AssignNode: interface property emptied when its node leaves", early.HeldCamera is null);
+        scene.QueueFree();
+        await Frames();
+
         static Node Level()
         {
             var level = new Node { Name = "Level" };
@@ -530,6 +560,20 @@ internal static class CheckRites
 public interface IAssignable;
 
 public partial class Assignable : Node, IAssignable;
+
+public interface IHoldsCamera
+{
+    [Rite.AssignNode("**/%Camera")]
+    Camera2D? HeldCamera { get; set; }
+}
+
+public partial class CameraHolder : Node, IHoldsCamera
+{
+    public Camera2D? HeldCamera { get; set; }
+    public Camera2D? CameraAtReady;
+
+    public override void _Ready() => CameraAtReady = HeldCamera;
+}
 
 internal static class CheckAssignments
 {

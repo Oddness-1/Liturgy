@@ -94,7 +94,7 @@ internal static class HarnessText
         The scene tree, with how many rites act on each node. [b]Pick on screen[/b] lets you click a control in your game to jump to it. The details list every rite acting on the node, its description, and how often it has fired for that node.
 
         [b][color=#{gold}]Assigned[/color][/b]
-        Every [b]AssignNode[/b] member, the path it follows, and the node it holds. A member is emptied when its node leaves the tree and filled again when a node arrives at its path; when it's empty, the row says why. Select a row to outline its node.
+        Every [b]AssignNode[/b] member, the path it follows, and the node it holds. A member is emptied when its node leaves the tree and filled again when a node arrives at its path; when it's empty, the row says why. An interface property shows how many nodes hold it (×3), and its details list them. Select a row to outline its node.
 
         [b][color=#{gold}]Log[/color][/b]
         The latest firings, newest at the bottom, with the node each ran for. Per-frame rites are hidden by default. Click a line to inspect its node.

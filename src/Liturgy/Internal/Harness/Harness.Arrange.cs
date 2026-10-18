@@ -161,9 +161,15 @@ internal sealed partial class Harness
         }
     }
 
+    // A line down the panel's edge with a handle at its middle, so the edge reads as something to drag; gold while
+    // it's hovered or held.
     private void DrawGrip()
     {
-        var hovered = _grip.GetGlobalRect().HasPoint(_grip.GetGlobalMousePosition());
-        if (hovered || _gripDragging) _grip.DrawRect(new Rect2(3, 0, 2, _grip.Size.Y), HarnessTheme.GOLD);
+        var active = _gripDragging || _grip.GetGlobalRect().HasPoint(_grip.GetGlobalMousePosition());
+        var middle = _grip.Size.X / 2f;
+        var handle = new Vector2(4, Mathf.Min(48, _grip.Size.Y));
+
+        _grip.DrawRect(new Rect2(middle - 1, 0, 2, _grip.Size.Y), active ? HarnessTheme.GOLD : HarnessTheme.BORDER);
+        _grip.DrawRect(new Rect2(new Vector2(middle, _grip.Size.Y / 2f) - handle / 2f, handle), active ? HarnessTheme.GOLD : HarnessTheme.DIM);
     }
 }

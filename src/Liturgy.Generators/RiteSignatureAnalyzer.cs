@@ -40,8 +40,12 @@ public sealed class RiteSignatureAnalyzer : DiagnosticAnalyzer
         "LIT006", "Rite in a generic class", "'{0}' is in a generic class, so [Rite.{1}] never runs; Liturgy has no type arguments to use. Move it to a non-generic class.",
         CATEGORY, DiagnosticSeverity.Error, isEnabledByDefault: true);
 
+    internal static readonly DiagnosticDescriptor CANT_ASSIGN = new(
+        "LIT008", "AssignNode on a member Liturgy can't assign", "[Rite.AssignNode] never assigns '{0}': {1}",
+        CATEGORY, DiagnosticSeverity.Error, isEnabledByDefault: true);
+
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } =
-        [NOT_STATIC, BAD_PARAMETERS, NOT_ON_INTERFACES, TARGET_ON_INTERFACE, NO_SIGNAL_NAME, IN_GENERIC_CLASS];
+        [NOT_STATIC, BAD_PARAMETERS, NOT_ON_INTERFACES, TARGET_ON_INTERFACE, NO_SIGNAL_NAME, IN_GENERIC_CLASS, CANT_ASSIGN];
 
     public override void Initialize(AnalysisContext context)
     {
@@ -107,15 +111,61 @@ public sealed class RiteSignatureAnalyzer : DiagnosticAnalyzer
 
     private static void AnalyzeAssignNode(SymbolAnalysisContext context, INamedTypeSymbol rite)
     {
-        if (!IsInGenericClass(context.Symbol.ContainingType)) return;
+        var member = context.Symbol;
 
-        foreach (var attribute in context.Symbol.GetAttributes())
+        foreach (var attribute in member.GetAttributes())
         {
             if (attribute.AttributeClass is not { Name: "AssignNode" } attributeClass || !SymbolEqualityComparer.Default.Equals(attributeClass.ContainingType, rite)) continue;
 
-            var location = attribute.ApplicationSyntaxReference?.GetSyntax(context.CancellationToken).GetLocation() ?? context.Symbol.Locations.FirstOrDefault();
-            context.ReportDiagnostic(Diagnostic.Create(IN_GENERIC_CLASS, location, context.Symbol.Name, "AssignNode"));
+            var location = attribute.ApplicationSyntaxReference?.GetSyntax(context.CancellationToken).GetLocation() ?? member.Locations.FirstOrDefault();
+
+            if (member.IsStatic && IsInGenericClass(member.ContainingType))
+            {
+                context.ReportDiagnostic(Diagnostic.Create(IN_GENERIC_CLASS, location, member.Name, "AssignNode"));
+                continue;
+            }
+
+            if (WhyUnassignable(member) is { } reason) context.ReportDiagnostic(Diagnostic.Create(CANT_ASSIGN, location, member.Name, reason));
         }
+    }
+
+    // The rules Liturgy applies when it scans for AssignNode members, which would otherwise skip the member at runtime.
+    private static string? WhyUnassignable(ISymbol member)
+    {
+        var onInterface = member.ContainingType.TypeKind == TypeKind.Interface;
+
+        if (!member.IsStatic && !onInterface)
+            return "it's an instance member of a class; make it static, or declare it as a property on an interface that the node implements";
+
+        if (member is IFieldSymbol { IsConst: true } or IFieldSymbol { IsReadOnly: true }) return "it's readonly";
+        if (member is IPropertySymbol { SetMethod: null }) return "it has no setter";
+
+        var type = member switch
+        {
+            IFieldSymbol field => field.Type,
+            IPropertySymbol property => property.Type,
+            _ => null
+        };
+
+        if (type is null || type.TypeKind == TypeKind.Error) return null;
+
+        if (type.TypeKind == TypeKind.TypeParameter || (type is INamedTypeSymbol named && named.TypeArguments.Any(argument => argument.TypeKind == TypeKind.TypeParameter)))
+            return "its type uses a type parameter, so it has no single node type to look for";
+
+        if (type.TypeKind != TypeKind.Interface && !DerivesFromNode(type))
+            return $"its type, {type.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat)}, is neither a node type nor an interface";
+
+        return null;
+    }
+
+    private static bool DerivesFromNode(ITypeSymbol type)
+    {
+        for (var current = type; current is not null; current = current.BaseType)
+        {
+            if (current is { Name: "Node", ContainingNamespace: { Name: "Godot", ContainingNamespace.IsGlobalNamespace: true } }) return true;
+        }
+
+        return false;
     }
 
     /// <summary>

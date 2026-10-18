@@ -11,12 +11,40 @@ internal sealed partial class LiturgyNode
 {
     private readonly List<AssignmentInfo> _assignments = [];
     private int _waitingAssignments;
+    private bool _followingAssignments;
+
+    // Interface properties by interface (generic ones by their definition), and what each node type holds of them.
+    private readonly Dictionary<Type, List<AssignmentInfo>> _perNodeAssignments = [];
+    private readonly Dictionary<Type, (AssignmentInfo Assignment, PropertyInfo Property)[]?> _perNodeAssignmentsByType = [];
+
+    // Static members follow their paths from /root's ready, as documented; interface properties from Liturgy's start,
+    // so a node in the first scene is filled before its own _Ready.
+    private readonly HashSet<AssignmentInfo> _assignmentsLive = [];
 
     public IReadOnlyList<AssignmentInfo> Assignments => _assignments;
 
     private void SetupAssignNodeEntries()
     {
         foreach (var type in GetUserTypes()) ScanTypeForAssignNode(type);
+        if (_perNodeAssignments.Count == 0) return;
+
+        foreach (var assignment in _assignments.Where(assignment => assignment.PerNode))
+        {
+            _assignmentsLive.Add(assignment);
+            TryAssign(assignment, warn: false);
+        }
+
+        FollowAssignments();
+        GetTree().NodeRemoved += OnNodeRemovedForAssignments;
+
+        var stack = new Stack<Node>();
+        stack.Push(_root);
+        while (stack.Count > 0)
+        {
+            var node = stack.Pop();
+            AddHolder(node);
+            foreach (var child in node.GetChildren()) stack.Push(child);
+        }
     }
 
     private void ScanTypeForAssignNode(Type type)
@@ -32,10 +60,13 @@ internal sealed partial class LiturgyNode
 
         foreach (var field in type.GetFields(BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic))
         {
-            if (field.GetCustomAttribute<AssignNode>() is { } attribute) AddAssignment(type, field, field.FieldType, attribute);
+            if (field.GetCustomAttribute<AssignNode>() is { } attribute) AddAssignment(type, field, field.FieldType, attribute, perNode: false);
         }
 
-        foreach (var property in type.GetProperties(BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic))
+        // Instance properties count only on an interface, where each implementing node holds its own; an instance
+        // member of a class is LIT008 at compile time.
+        var properties = BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic | (type.IsInterface ? BindingFlags.Instance : 0);
+        foreach (var property in type.GetProperties(properties))
         {
             if (property.GetCustomAttribute<AssignNode>() is not { } attribute) continue;
 
@@ -45,11 +76,11 @@ internal sealed partial class LiturgyNode
                 continue;
             }
 
-            AddAssignment(type, property, property.PropertyType, attribute);
+            AddAssignment(type, property, property.PropertyType, attribute, perNode: !property.GetMethod!.IsStatic);
         }
     }
 
-    private void AddAssignment(Type type, MemberInfo member, Type memberType, AssignNode attribute)
+    private void AddAssignment(Type type, MemberInfo member, Type memberType, AssignNode attribute, bool perNode)
     {
         // An interface is checked against the node found, like any other type.
         if (!typeof(Node).IsAssignableFrom(memberType) && !memberType.IsInterface)
@@ -58,35 +89,108 @@ internal sealed partial class LiturgyNode
             return;
         }
 
+        // Every holder holds the same node, so the type can't vary with a generic interface's arguments.
+        if (memberType.ContainsGenericParameters)
+        {
+            LiturgyReport.AddConsoleWarning($"[Liturgy] [Rite.AssignNode] '{type.FullName}.{member.Name}' can't have a type that uses the interface's type parameters. Skipping.");
+            return;
+        }
+
         var path = IsPattern(attribute.Path) ? NormalizeExcludePattern(attribute.Path) : NormalizePath(attribute.Path);
-        _assignments.Add(new AssignmentInfo(member, path, memberType) { Problem = "Waiting for /root to be ready." });
+        var assignment = new AssignmentInfo(member, path, memberType, perNode) { Problem = "Waiting for /root to be ready." };
+        _assignments.Add(assignment);
         _waitingAssignments++;
         LiturgyReport.AddAssignNodeEntry($"{type.FullName}.{member.Name}", path, memberType.Name);
+
+        if (!perNode) return;
+
+        var owner = type.IsGenericType ? type.GetGenericTypeDefinition() : type;
+        if (!_perNodeAssignments.TryGetValue(owner, out var assignments))
+        {
+            assignments = [];
+            _perNodeAssignments[owner] = assignments;
+        }
+
+        assignments.Add(assignment);
     }
 
     private void ExecuteAssignNodeEntries()
     {
-        foreach (var assignment in _assignments) TryAssign(assignment, warn: true);
+        foreach (var assignment in _assignments)
+        {
+            _assignmentsLive.Add(assignment);
+            if (assignment.Node is null) TryAssign(assignment, warn: true);
+        }
 
         // Each member follows its path, so a node that arrives there later, such as after a scene change, is assigned.
-        if (_assignments.Count > 0) GetTree().NodeAdded += OnNodeAddedForAssignments;
+        if (_assignments.Count > 0) FollowAssignments();
+    }
+
+    private void FollowAssignments()
+    {
+        if (_followingAssignments) return;
+        _followingAssignments = true;
+        GetTree().NodeAdded += OnNodeAddedForAssignments;
     }
 
     private void OnNodeAddedForAssignments(Node node)
     {
-        if (_waitingAssignments == 0) return;
-
-        var name = node.Name.ToString();
-        foreach (var assignment in _assignments)
+        if (_waitingAssignments > 0)
         {
-            if (assignment.Node is not null) continue;
-
-            if (IsPattern(assignment.Path))
+            var name = node.Name.ToString();
+            foreach (var assignment in _assignments)
             {
-                if (MatchesPattern(assignment, node)) Assign(assignment, node, warn: false);
+                if (assignment.Node is not null || !_assignmentsLive.Contains(assignment)) continue;
+
+                if (IsPattern(assignment.Path))
+                {
+                    if (MatchesPattern(assignment, node)) Assign(assignment, node, warn: false);
+                }
+                else if (LastSegment(assignment.Path) == name) TryAssign(assignment, warn: false);
             }
-            else if (LastSegment(assignment.Path) == name) TryAssign(assignment, warn: false);
         }
+
+        // After the node may have been assigned somewhere, so a node that holds itself gets itself.
+        if (_perNodeAssignments.Count > 0) AddHolder(node);
+    }
+
+    private void AddHolder(Node node)
+    {
+        if (PerNodeAssignmentsFor(node.GetType()) is not { } held || IsHiddenFromRites(node)) return;
+        foreach (var (assignment, property) in held) assignment.AddHolder(node, property);
+    }
+
+    private void OnNodeRemovedForAssignments(Node node)
+    {
+        if (PerNodeAssignmentsFor(node.GetType()) is not { } held) return;
+        foreach (var (assignment, _) in held) assignment.RemoveHolder(node);
+    }
+
+    private (AssignmentInfo Assignment, PropertyInfo Property)[]? PerNodeAssignmentsFor(Type type)
+    {
+        if (_perNodeAssignmentsByType.TryGetValue(type, out var cached)) return cached;
+
+        List<(AssignmentInfo, PropertyInfo)>? held = null;
+        foreach (var implemented in type.GetInterfaces())
+        {
+            var definition = implemented.IsGenericType ? implemented.GetGenericTypeDefinition() : implemented;
+            if (!_perNodeAssignments.TryGetValue(definition, out var assignments)) continue;
+
+            foreach (var assignment in assignments)
+            {
+                // A generic interface's property, closed over this implementation's type arguments.
+                const BindingFlags DECLARED = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly;
+                var property = implemented.IsGenericType ? implemented.GetProperty(assignment.Member.Name, DECLARED) : (PropertyInfo)assignment.Member;
+                if (property is null) continue;
+
+                held ??= [];
+                held.Add((assignment, property));
+            }
+        }
+
+        var result = held?.ToArray();
+        _perNodeAssignmentsByType[type] = result;
+        return result;
     }
 
     private void TryAssign(AssignmentInfo assignment, bool warn)

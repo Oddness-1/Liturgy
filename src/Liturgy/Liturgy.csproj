@@ -41,4 +41,8 @@
           Visible="false" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Include=".editorconfig" />
+  </ItemGroup>
+
 </Project>

@@ -9,6 +9,8 @@ namespace Liturgy.Internal;
 // The Assigned tab: every [Rite.AssignNode] member and the node it holds.
 internal sealed partial class Harness
 {
+    private const int MAX_HOLDERS_SHOWN = 20;
+
     private void BuildAssignedTab()
     {
         var tab = new VBoxContainer { Name = "Assigned" };
@@ -72,7 +74,7 @@ internal sealed partial class Harness
 
             if (assignments.Count == 0)
             {
-                _assignedDetails.Text = $"[color=#{Hex(HarnessTheme.DIM)}]No [lb]Rite.AssignNode] members in this game. Put one on a static field or property to have Liturgy keep it pointed at a node.[/color]";
+                _assignedDetails.Text = $"[color=#{Hex(HarnessTheme.DIM)}]No [lb]Rite.AssignNode] members in this game. Put one on a static field or property, or on an interface property, to have Liturgy keep it pointed at a node.[/color]";
             }
             else if (_selectedAssignment is null)
             {
@@ -82,6 +84,9 @@ internal sealed partial class Harness
 
         foreach (var (assignment, item) in _assignedItems)
         {
+            // An interface property is held by every implementing node; the count says how many hold it now.
+            if (assignment.PerNode) item.SetText(0, $"{assignment.Name}  ×{assignment.HolderCount}");
+
             var node = assignment.Node is { } held && IsInstanceValid(held) ? held : null;
             item.SetText(2, node?.GetType().Name ?? "empty");
             item.SetCustomColor(2, node is not null ? HarnessTheme.TEXT : assignment.Problem?.StartsWith("The node at") == true ? HarnessTheme.RED : HarnessTheme.DIM);
@@ -124,6 +129,15 @@ internal sealed partial class Harness
             text.Append($"[color=#{dim}]Holds[/color]  nothing. {Escape(assignment.Problem ?? "")}\n");
 
         text.Append($"[color=#{dim}]Assigned[/color]  {assignment.Assignments} time{(assignment.Assignments == 1 ? "" : "s")}");
+
+        if (assignment.PerNode)
+        {
+            var holders = assignment.Holders.Where(IsInstanceValid).ToList();
+            text.Append($"\n\n[color=#{dim}]Held by {holders.Count} node{(holders.Count == 1 ? "" : "s")} implementing {Escape(assignment.Member.DeclaringType?.Name ?? "")}[/color]");
+            foreach (var holder in holders.Take(MAX_HOLDERS_SHOWN)) text.Append($"\n{Escape(ShortPath(holder))}");
+            if (holders.Count > MAX_HOLDERS_SHOWN) text.Append($"\n[color=#{dim}]and {holders.Count - MAX_HOLDERS_SHOWN} more[/color]");
+        }
+
         _assignedDetails.Text = text.ToString();
     }
 }

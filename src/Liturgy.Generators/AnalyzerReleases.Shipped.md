@@ -9,5 +9,6 @@ LIT002 | Liturgy | Error | RiteSignatureAnalyzer: parameters that don't fit the 
 LIT003 | Liturgy | Error | RiteSignatureAnalyzer: a rite that isn't supported on interface members
 LIT004 | Liturgy | Warning | RiteSignatureAnalyzer: Target on an interface rite
 LIT005 | Liturgy | Error | RiteSignatureAnalyzer: OnSignal without a signal name
-LIT006 | Liturgy | Error | RiteSignatureAnalyzer: a rite or AssignNode in a generic class
+LIT006 | Liturgy | Error | RiteSignatureAnalyzer: a rite or static AssignNode in a generic class
 LIT007 | Liturgy | Warning | GodotVersionAnalyzer: a Godot version newer than Liturgy was tested with
+LIT008 | Liturgy | Error | RiteSignatureAnalyzer: AssignNode on a member Liturgy can't assign

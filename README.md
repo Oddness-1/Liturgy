@@ -85,7 +85,8 @@ everything. Run your game from the editor and press **Alt+~** to open the harnes
   fired and when it last did. Select one to outline its nodes on screen. Untick it to mute it and see what changes.
 - **Nodes:** your scene tree with how many rites act on each node. Pick a control on screen to jump to it and see every
   rite acting on it, with how often each has fired for that node.
-- **Assigned:** every `AssignNode` member, the path it follows, the node it holds, and why it's empty when it is.
+- **Assigned:** every `AssignNode` member, the path it follows, the node it holds, which nodes hold it, and why it's
+  empty when it is.
 - **Log:** the latest firings, with the node each ran for.
 
 Click a heading to sort by it, drag the lines between headings, panes and the panel's edge to resize them; the harness
@@ -212,7 +213,8 @@ private static void Cleanup(Enemy enemy) => EnemyManager.Untrack(enemy);
 
 ## AssignNode
 
-Automatically assign scene tree nodes to static fields or properties when `/root` is ready.
+Automatically assign scene tree nodes to static fields or properties, or to an interface property on every node that
+implements it.
 
 ```csharp
 // Assign an autoload
@@ -230,15 +232,39 @@ private static AudioManager Audio { get; set; }
 // Or an interface: whatever node at the path implements it
 [Rite.AssignNode("/root/Music")]
 private static IMusicPlayer Music;
+
+// A pattern: the first match anywhere in the tree, here the camera in whatever scene is loaded
+[Rite.AssignNode("**/%Camera")]
+private static Camera3D Camera;
+```
+
+On an interface property, each node that implements the interface holds its own copy:
+
+```csharp
+public interface ISeesCamera
+{
+    [Rite.AssignNode("**/%Camera")]
+    Camera3D Camera { get; set; }
+}
+
+public partial class Enemy : CharacterBody3D, ISeesCamera
+{
+    public Camera3D Camera { get; set; }
+
+    public override void _Ready() => LookAt(Camera.GlobalPosition);
+}
 ```
 
 **Key points:**
-- Assignments happen when `/root` is ready, **before** any `[Rite.OnReady]` callbacks in `RootReady` mode
+- Static members are assigned when `/root` is ready, **before** any `[Rite.OnReady]` callbacks in `RootReady` mode
 - This means your `[Rite.OnReady]` methods can safely reference these static fields
+- An interface property is filled as each implementing node enters the tree, so it's set by the node's own `_Ready`, even when the node it points at comes later in the same scene (a node already in the tree when Liturgy starts is filled then). It's emptied when the node leaves the tree
 - The member follows its path: when its node leaves the tree it's set to null, and when a node arrives at the path again (after a scene change, say) it's assigned that one, so it never holds a freed node
+- Paths start at `/root`. A path with `*` is a pattern, matched like `Exclude`: `**` spans any depth, and a last segment written `%Name` needs a scene-unique name. The first match in tree order wins, and when it leaves the next one is picked
 - If no node is at the path yet, a warning is logged and the member stays null until one arrives
 - The member's type can be a node type, a base type, or an interface the node implements
-- The harness lists every assigned member, the node it holds, and why it's empty when it is
+- An instance member of a class is never assigned (LIT008): make it static, or declare it on an interface the node implements
+- The harness lists every assigned member, the node it holds, which nodes hold it, and why it's empty when it is
 
 ```csharp
 // Safe to use GM here — it's already assigned
@@ -844,8 +870,9 @@ The package's analyzer flags rites that can never run, as you type:
 | LIT003 | Error | Rite that isn't supported on interface members |
 | LIT004 | Warning | `Target` on an interface rite, where it's ignored |
 | LIT005 | Error | `OnSignal` without a signal name |
-| LIT006 | Error | A rite or `AssignNode` in a generic class, which Liturgy can't call or assign |
+| LIT006 | Error | A rite or static `AssignNode` in a generic class, which Liturgy can't call or assign |
 | LIT007 | Warning | A newer Godot than Liturgy was tested with (see below) |
+| LIT008 | Error | `AssignNode` on a member Liturgy can't assign: an instance member of a class, readonly, no setter, or a type that's neither a node type nor an interface |
 
 `OnSignal` is checked against engine signals and your own `[Signal]` delegates when the source parameter's type
 declares the signal; otherwise it's checked at runtime and reported in the debug report.

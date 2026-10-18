@@ -12,7 +12,7 @@ namespace Liturgy.Generators;
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class RiteMemberSuppressor : DiagnosticSuppressor
 {
-    private static readonly SuppressionDescriptor NEVER_ASSIGNED = new("LITS001", "CS0649", "Liturgy assigns [Rite.AssignNode] members when /root is ready.");
+    private static readonly SuppressionDescriptor NEVER_ASSIGNED = new("LITS001", "CS0649", "Liturgy assigns [Rite.AssignNode] members at runtime.");
     private static readonly SuppressionDescriptor MAKE_READONLY = new("LITS002", "IDE0044", "Liturgy assigns [Rite.AssignNode] members, so they can't be readonly.");
     private static readonly SuppressionDescriptor UNUSED_MEMBER = new("LITS003", "IDE0051", "Liturgy calls rite methods and assigns [Rite.AssignNode] members.");
     private static readonly SuppressionDescriptor UNREAD_MEMBER = new("LITS004", "IDE0052", "Liturgy assigns [Rite.AssignNode] members.");

@@ -114,7 +114,11 @@ internal static class HarnessTheme
         theme.SetColor("font_hovered_color", "TabContainer", TEXT);
 
         var list = Box(SURFACE, margin: 4, radius: 4);
-        theme.SetStylebox("panel", "Tree", list);
+
+        // Extra room on the right keeps the last column's text off the panel's edge and its resize grip.
+        var treePanel = Box(SURFACE, margin: 4, radius: 4);
+        treePanel.ContentMarginRight = 10;
+        theme.SetStylebox("panel", "Tree", treePanel);
         theme.SetStylebox("focus", "Tree", new StyleBoxEmpty());
         theme.SetStylebox("selected", "Tree", Box(GOLD.Darkened(0.6f), radius: 3));
         theme.SetStylebox("selected_focus", "Tree", Box(GOLD.Darkened(0.5f), radius: 3));
@@ -129,6 +133,7 @@ internal static class HarnessTheme
         theme.SetColor("guide_color", "Tree", BORDER);
         theme.SetColor("relationship_line_color", "Tree", BORDER);
         theme.SetConstant("v_separation", "Tree", 3);
+        theme.SetConstant("inner_item_margin_right", "Tree", 6);
         theme.SetConstant("draw_relationship_lines", "Tree", 1);
 
         theme.SetStylebox("panel", "ItemList", list);
