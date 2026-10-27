@@ -13,7 +13,7 @@
     <!-- NuGet packaging. Pack with: dotnet pack -c ExportRelease (Debug builds reference GodotSharpEditor). -->
     <IsPackable>true</IsPackable>
     <PackageId>Liturgy.Godot</PackageId>
-    <Version>0.1.0</Version>
+    <Version>0.2.0</Version>
     <Authors>Oddness</Authors>
     <Description>Attribute-based global hooks for Godot C#. Mark static methods with [Rite.OnReady], [Rite.OnButtonPressed], [Rite.OnProcess] and more, and Liturgy wires them up across the whole scene tree. No addon, no autoload, no setup.</Description>
     <PackageTags>godot;godot4;gamedev;attributes;hooks;signals;source-generator</PackageTags>
@@ -23,7 +23,7 @@
     <RepositoryUrl>https://github.com/Oddness-1/Liturgy.git</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <Copyright>Copyright (c) 2025-2026 Oddness</Copyright>
-    <PackageReleaseNotes>First public release.</PackageReleaseNotes>
+    <PackageReleaseNotes>Fixes from a full audit: rites with a narrower parameter type no longer break their category, input rites can run while paused (WhilePaused), targeted OnReady follows its path, and less memory and per-frame work. See CHANGELOG.md.</PackageReleaseNotes>
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageIcon>icon.png</PackageIcon>

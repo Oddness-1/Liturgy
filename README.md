@@ -48,7 +48,7 @@ No manual wiring. No base classes. No forgetting to connect signals. It just wor
 Add the package to your game's `.csproj`:
 
 ```xml
-<PackageReference Include="Liturgy.Godot" Version="0.1.0" />
+<PackageReference Include="Liturgy.Godot" Version="0.2.0" />
 ```
 
 That's all. There's no addon to copy, no plugin to enable and no autoload to register.

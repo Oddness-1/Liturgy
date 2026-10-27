@@ -2,7 +2,7 @@
 
 Each release gets a section here, newest first. Liturgy shows the sections a project hasn't seen yet in its update greeting, so write them for the people using it: what they can now do, and anything they must change.
 
-## [Unreleased]
+## [0.2.0]
 
 New:
 - `WhilePaused` on `OnInput`, `OnUnhandledInput` and `OnUnhandledKeyInput`: the rite keeps getting input while the tree is paused, for pause menus. Without it, input rites pause with the game as before.
