@@ -79,14 +79,86 @@ internal sealed partial class LiturgyNode
     /// <summary>
     /// A lifecycle rite (ready, process, input) on an interface member, resolved for one implementing type.
     /// <c>Parameter</c> is the delta or input event type the method takes, or null for none.
+    /// It's bound once to a typed delegate, since process rites run for every node every frame.
     /// </summary>
-    private sealed record InstanceCall(MethodInfo Method, string MethodName, int Priority, HashSet<string>? Excludes, Type? Parameter)
+    private sealed class InstanceCall
     {
-        public void Invoke(Node node, object? argument)
+        private static readonly MethodInfo BIND_PLAIN = typeof(InstanceCall).GetMethod(nameof(BindPlain), BindingFlags.NonPublic | BindingFlags.Static)!;
+        private static readonly MethodInfo BIND_FRAME = typeof(InstanceCall).GetMethod(nameof(BindFrame), BindingFlags.NonPublic | BindingFlags.Static)!;
+        private static readonly MethodInfo BIND_EVENT = typeof(InstanceCall).GetMethod(nameof(BindEvent), BindingFlags.NonPublic | BindingFlags.Static)!;
+
+        public string MethodName { get; }
+        public int Priority { get; }
+        public Type? Parameter { get; }
+
+        private readonly MethodInfo _method;
+        private readonly HashSet<string>? _excludes;
+        private readonly Action<Node> _plain;
+        private readonly Action<Node, double> _frame;
+        private readonly Action<Node, InputEvent> _event;
+
+        public InstanceCall(MethodInfo method, string methodName, int priority, HashSet<string>? excludes, Type? parameter)
         {
-            if (Excludes is not null && PathMatchesAnyExclude(node.GetPath().ToString(), Excludes)) return;
-            try { RiteProbe.Run(Method, node, (Method, node, arguments: Parameter is null ? [] : new[] { argument }), static call => call.Method.Invoke(call.node, BindingFlags.DoNotWrapExceptions, null, call.arguments, CultureInfo.InvariantCulture)); }
+            _method = method;
+            MethodName = methodName;
+            Priority = priority;
+            _excludes = excludes;
+            Parameter = parameter;
+
+            // The method's own interface is the delegate's first parameter, so the call dispatches to each node's implementation.
+            var owner = method.DeclaringType!;
+            if (parameter is null)
+            {
+                var plain = (Action<Node>)BIND_PLAIN.MakeGenericMethod(owner).Invoke(null, [method])!;
+                _plain = plain;
+                _frame = (node, _) => plain(node);
+                _event = (node, _) => plain(node);
+            }
+            else if (parameter == typeof(double))
+            {
+                var frame = (Action<Node, double>)BIND_FRAME.MakeGenericMethod(owner).Invoke(null, [method])!;
+                _plain = node => frame(node, 0);
+                _frame = frame;
+                _event = (node, _) => frame(node, 0);
+            }
+            else
+            {
+                var onEvent = (Action<Node, InputEvent>)BIND_EVENT.MakeGenericMethod(owner, parameter).Invoke(null, [method])!;
+                _plain = node => onEvent(node, null!);
+                _frame = (node, _) => onEvent(node, null!);
+                _event = onEvent;
+            }
+        }
+
+        public void Invoke(Node node) => Run(node, null, (Call: _plain, node), static state => state.Call(state.node));
+
+        public void Invoke(Node node, double delta, string path) => Run(node, path, (Call: _frame, node, delta), static state => state.Call(state.node, state.delta));
+
+        public void Invoke(Node node, InputEvent @event) => Run(node, null, (Call: _event, node, @event), static state => state.Call(state.node, state.@event));
+
+        private void Run<TState>(Node node, string? path, TState state, Action<TState> call)
+        {
+            if (_excludes is not null && PathMatchesAnyExclude(path ?? node.GetPath().ToString(), _excludes)) return;
+            try { RiteProbe.Run(_method, node, state, call); }
             catch (Exception exception) { RiteCall.Report(exception, MethodName); }
+        }
+
+        private static Action<Node> BindPlain<TInterface>(MethodInfo method)
+        {
+            var call = method.CreateDelegate<Action<TInterface>>();
+            return node => call((TInterface)(object)node);
+        }
+
+        private static Action<Node, double> BindFrame<TInterface>(MethodInfo method)
+        {
+            var call = method.CreateDelegate<Action<TInterface, double>>();
+            return (node, delta) => call((TInterface)(object)node, delta);
+        }
+
+        private static Action<Node, InputEvent> BindEvent<TInterface, TEvent>(MethodInfo method) where TEvent : InputEvent
+        {
+            var call = method.CreateDelegate<Action<TInterface, TEvent>>();
+            return (node, @event) => call((TInterface)(object)node, (TEvent)@event);
         }
     }
 
@@ -98,11 +170,11 @@ internal sealed partial class LiturgyNode
     private readonly Dictionary<Type, List<(MethodInfo Method, Attribute Attribute)>> _interfaceMembers = [];
     private readonly Dictionary<Type, InterfaceRites?> _interfaceRitesByType = [];
 
-    // Interface input rites, per node, in priority order. Arrays are rebuilt when membership changes.
+    // Interface input rites, per node. The priority-ordered arrays are rebuilt on the next event after membership changes.
     private readonly Dictionary<ulong, (Node Node, InterfaceRites Rites)> _interfaceInputNodes = [];
-    private (Node Node, InstanceCall Call)[] _interfaceInput = [];
-    private (Node Node, InstanceCall Call)[] _interfaceUnhandledInput = [];
-    private (Node Node, InstanceCall Call)[] _interfaceUnhandledKeyInput = [];
+    private (int Input, int UnhandledInput, int UnhandledKeyInput) _interfaceInputCount;
+    private ((Node Node, InstanceCall Call)[] Input, (Node Node, InstanceCall Call)[] UnhandledInput, (Node Node, InstanceCall Call)[] UnhandledKeyInput) _interfaceInput = ([], [], []);
+    private bool _interfaceInputStale;
 
     private readonly HashSet<ulong> _pendingInterfaceReady = [];
 
@@ -219,27 +291,39 @@ internal sealed partial class LiturgyNode
                 break;
 
             case InterfaceRiteKind.Ready:
-                if (!ValidateInstanceCall(method, methodName, hookName, null, out _)) break;
-                RiteProbe.MarkRunning(method);
-                rites.Ready.Add(new InstanceCall(method, methodName, priority, excludes, null));
+                if (!ValidateInstanceCall(method, methodName, hookName, null, out _) || CreateInstanceCall(method, methodName, hookName, priority, excludes, null) is not { } readyCall) break;
+                rites.Ready.Add(readyCall);
                 break;
 
             case InterfaceRiteKind.Process:
             case InterfaceRiteKind.PhysicsProcess:
-                if (!ValidateInstanceCall(method, methodName, hookName, typeof(double), out var delta)) break;
-                RiteProbe.MarkRunning(method);
-                var frameCall = new InstanceCall(method, methodName, priority, excludes, delta);
+                if (!ValidateInstanceCall(method, methodName, hookName, typeof(double), out var delta) || CreateInstanceCall(method, methodName, hookName, priority, excludes, delta) is not { } frameCall) break;
                 (attr is OnProcess ? rites.Process : rites.PhysicsProcess).Add(frameCall);
                 break;
 
             case InterfaceRiteKind.Input:
             case InterfaceRiteKind.UnhandledInput:
             case InterfaceRiteKind.UnhandledKeyInput:
-                if (!ValidateInstanceCall(method, methodName, hookName, typeof(InputEvent), out var eventType)) break;
-                RiteProbe.MarkRunning(method);
-                var inputCall = new InstanceCall(method, methodName, priority, excludes, eventType);
+                if (!ValidateInstanceCall(method, methodName, hookName, typeof(InputEvent), out var eventType) || CreateInstanceCall(method, methodName, hookName, priority, excludes, eventType) is not { } inputCall) break;
                 (attr switch { OnInput => rites.Input, OnUnhandledInput => rites.UnhandledInput, _ => rites.UnhandledKeyInput }).Add(inputCall);
                 break;
+        }
+    }
+
+    // One rite that can't be bound is reported and skipped; the node's other rites still run.
+    private static InstanceCall? CreateInstanceCall(MethodInfo method, string methodName, string hookName, int priority, HashSet<string>? excludes, Type? parameter)
+    {
+        try
+        {
+            var call = new InstanceCall(method, methodName, priority, excludes, parameter);
+            RiteProbe.MarkRunning(method);
+            return call;
+        }
+        catch (Exception exception)
+        {
+            var reason = (exception as TargetInvocationException)?.InnerException ?? exception;
+            LiturgyReport.AddMethodError(methodName, hookName, $"Can't be called as this rite: {reason.Message}");
+            return null;
         }
     }
 
@@ -276,19 +360,19 @@ internal sealed partial class LiturgyNode
                     node.Connect(Node.SignalName.Ready, Callable.From(() =>
                     {
                         _pendingInterfaceReady.Remove(id);
-                        foreach (var call in rites.Ready) call.Invoke(node, null);
+                        foreach (var call in rites.Ready) call.Invoke(node);
                     }), (uint)ConnectFlags.OneShot);
                 }
             }
             else if (initial)
             {
-                foreach (var call in rites.Ready) call.Invoke(node, null);
+                foreach (var call in rites.Ready) call.Invoke(node);
             }
         }
 
         if (rites.Process.Count > 0 || rites.PhysicsProcess.Count > 0) AttachInterfaceProcess(node, rites);
 
-        if (rites.HasInput && _interfaceInputNodes.TryAdd(id, (node, rites))) RebuildInterfaceInput();
+        if (rites.HasInput && _interfaceInputNodes.TryAdd(id, (node, rites))) InterfaceInputChanged(rites, 1);
     }
 
     private static void AttachInterfaceProcess(Node node, InterfaceRites rites)
@@ -304,28 +388,44 @@ internal sealed partial class LiturgyNode
         if (process && !node.IsProcessing()) node.SetProcess(true);
         if (physics && !node.IsPhysicsProcessing()) node.SetPhysicsProcess(true);
 
-        if (process) hook.InstanceProcessed += delta => { foreach (var call in rites.Process) call.Invoke(node, delta); };
-        if (physics) hook.InstancePhysicsProcessed += delta => { foreach (var call in rites.PhysicsProcess) call.Invoke(node, delta); };
+        if (process) hook.InstanceProcessed += delta => { foreach (var call in rites.Process) call.Invoke(node, delta, hook.TargetPath); };
+        if (physics) hook.InstancePhysicsProcessed += delta => { foreach (var call in rites.PhysicsProcess) call.Invoke(node, delta, hook.TargetPath); };
     }
 
     private bool IsInterfaceInputNode(ulong id) => _interfaceInputNodes.ContainsKey(id);
 
     private void DetachInterfaceInput(ulong id)
     {
-        if (_interfaceInputNodes.Remove(id)) RebuildInterfaceInput();
+        if (_interfaceInputNodes.Remove(id, out var entry)) InterfaceInputChanged(entry.Rites, -1);
     }
 
-    private void RebuildInterfaceInput()
+    private void InterfaceInputChanged(InterfaceRites rites, int sign)
     {
-        _interfaceInput = Flatten(rites => rites.Input);
-        _interfaceUnhandledInput = Flatten(rites => rites.UnhandledInput);
-        _interfaceUnhandledKeyInput = Flatten(rites => rites.UnhandledKeyInput);
-        return;
+        _interfaceInputCount.Input += sign * rites.Input.Count;
+        _interfaceInputCount.UnhandledInput += sign * rites.UnhandledInput.Count;
+        _interfaceInputCount.UnhandledKeyInput += sign * rites.UnhandledKeyInput.Count;
+        _interfaceInputStale = true;
+        UpdateInputRelay();
+    }
 
-        (Node, InstanceCall)[] Flatten(Func<InterfaceRites, List<InstanceCall>> select) => _interfaceInputNodes.Values
-            .SelectMany(entry => select(entry.Rites).Select(call => (entry.Node, call)))
-            .OrderBy(pair => pair.call.Priority)
-            .ToArray();
+    /// <summary>
+    /// The interface input rites of every registered node, in priority order, rebuilt only when nodes came or went since the last event.
+    /// </summary>
+    private ((Node Node, InstanceCall Call)[] Input, (Node Node, InstanceCall Call)[] UnhandledInput, (Node Node, InstanceCall Call)[] UnhandledKeyInput) InterfaceInput
+    {
+        get
+        {
+            if (!_interfaceInputStale) return _interfaceInput;
+
+            _interfaceInputStale = false;
+            _interfaceInput = (Flatten(rites => rites.Input), Flatten(rites => rites.UnhandledInput), Flatten(rites => rites.UnhandledKeyInput));
+            return _interfaceInput;
+
+            (Node, InstanceCall)[] Flatten(Func<InterfaceRites, List<InstanceCall>> select) => _interfaceInputNodes.Values
+                .SelectMany(entry => select(entry.Rites).Select(call => (entry.Node, call)))
+                .OrderBy(pair => pair.call.Priority)
+                .ToArray();
+        }
     }
 
     private static void DispatchInterfaceInput((Node Node, InstanceCall Call)[] entries, InputEvent @event)

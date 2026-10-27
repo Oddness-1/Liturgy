@@ -2,6 +2,30 @@
 
 Each release gets a section here, newest first. Liturgy shows the sections a project hasn't seen yet in its update greeting, so write them for the people using it: what they can now do, and anything they must change.
 
+## [Unreleased]
+
+New:
+- `WhilePaused` on `OnInput`, `OnUnhandledInput` and `OnUnhandledKeyInput`: the rite keeps getting input while the tree is paused, for pause menus. Without it, input rites pause with the game as before.
+
+Fixed:
+- A rite whose parameter is a subtype of what its signal passes (`OnBodyEntered(Player player, Area2D area)`, `OnGuiInput(InputEventMouseButton click, Control control)`, a `LineEdit` or `AnimationPlayer` subclass) now runs for that subtype only. Before, it could stop every rite of its kind from running.
+- A rite Liturgy can't call is reported and skipped on its own; the rest of its kind still runs.
+- `OnProcess` and `OnPhysicsProcess` with `Target` or `PerNode` now run on nodes that don't process on their own (no `_Process`, or `SetProcess(false)`). They still stop while the node is paused, and they don't turn the node's own processing on.
+- `OnSortChildren` now fires for `ScrollContainer`s.
+- A node moved into or out of the `liturgy_ignore` group with `Reparent` is seen correctly again.
+- Per-node `OnReady` no longer keeps every node that ever entered the tree in memory.
+- `OnReady` with `Target` follows its path, as `AssignNode` does: a new node that becomes ready at the path (after a scene change, say) gets the rite too. Before, only the first node ever did.
+
+Faster:
+- Input reaches C# only when a project has input rites.
+- Controls connect only the focus, mouse and resize signals some rite listens for.
+- Per-node process rites and interface rites allocate nothing per frame, and interface rites are called through typed delegates instead of reflection.
+- The startup scan walks your assemblies once.
+- Signal rites allocate less per emission.
+
+Changed:
+- Button rites match `Target` and `Exclude` against the path the button had when it entered the tree, like every other signal rite.
+
 ## [0.1.0]
 
 First release.

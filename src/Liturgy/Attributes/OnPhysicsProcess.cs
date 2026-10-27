@@ -14,7 +14,7 @@ public static partial class Rite
     /// With <c>Target</c>: fires once per tick for each specified node.
     /// </para>
     /// <para>
-    /// <b>PerNode mode:</b> Fires for each physics-processing node per tick.
+    /// <b>PerNode mode:</b> Fires for each matching node every physics tick it isn't paused, whether or not the node physics-processes itself.
     /// Use a typed parameter to filter by node type. <c>Target</c> is ignored in this mode.
     /// </para>
     /// <para>
@@ -52,12 +52,12 @@ public static partial class Rite
     /// private static void UpdateBodies(double delta, RigidBody3D body) { }
     /// </code>
     /// <code>
-    /// // DANGEROUS: No type filter creates a helper node on EVERY physics processing node!
+    /// // DANGEROUS: No type filter creates a helper node on EVERY node!
     /// [Rite.OnPhysicsProcess(Mode = Rite.FrameMode.PerNode)]
     /// private static void UpdateEverything(double delta, Node n) { }
     /// </code>
     /// <code>
-    /// // ALSO DANGEROUS: No parameters will still create a helper node on EVERY physics processing node!
+    /// // ALSO DANGEROUS: No parameters will still create a helper node on EVERY node!
     /// [Rite.OnPhysicsProcess(Mode = Rite.FrameMode.PerNode)]
     /// private static void UpdateEverything(double delta) { }
     /// </code>

@@ -14,7 +14,7 @@ public static partial class Rite
     /// With <c>Target</c>: fires once per frame for each specified node.
     /// </para>
     /// <para>
-    /// <b>PerNode mode:</b> Fires for each processing node per frame.
+    /// <b>PerNode mode:</b> Fires for each matching node every frame it isn't paused, whether or not the node processes itself.
     /// Use a typed parameter to filter by node type. <c>Target</c> is ignored in this mode.
     /// </para>
     /// <para>
@@ -52,12 +52,12 @@ public static partial class Rite
     /// private static void UpdateEnemies(double delta, Enemy e) { }
     /// </code>
     /// <code>
-    /// // DANGEROUS: No type filter creates a helper node on EVERY processing node!
+    /// // DANGEROUS: No type filter creates a helper node on EVERY node!
     /// [Rite.OnProcess(Mode = Rite.FrameMode.PerNode)]
     /// private static void UpdateEverything(double delta, Node n) { }
     /// </code>
     /// <code>
-    /// // ALSO DANGEROUS: No parameters will still create a helper node on EVERY physics processing node!
+    /// // ALSO DANGEROUS: No parameters will still create a helper node on EVERY node!
     /// [Rite.OnProcess(Mode = Rite.FrameMode.PerNode)]
     /// private static void UpdateEverything(double delta) { }
     /// </code>

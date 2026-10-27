@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Godot;
 // ReSharper disable InconsistentNaming
 using static Liturgy.Rite;
@@ -11,6 +12,7 @@ namespace Liturgy.Internal;
 /// </summary>
 internal partial class ProcessHook : Node
 {
+    // Static rites run every frame the target isn't paused, whether or not the target processes itself.
     public event Action<double, Node>? Processed;
     public event Action<double, Node>? PhysicsProcessed;
 
@@ -28,9 +30,20 @@ internal partial class ProcessHook : Node
     /// </summary>
     public bool ProcessRitesAttached { get; set; }
     public bool PhysicsProcessRitesAttached { get; set; }
-    
+
+    // Hooks created but not yet added to their target (the add is deferred), by target id, so a second request finds them.
+    private static readonly Dictionary<ulong, ProcessHook> _pending = [];
+
     private Node _target = null!;
-    
+    private bool _wantsProcess;
+    private bool _wantsPhysicsProcess;
+    private string? _targetPath;
+
+    /// <summary>
+    /// The target's path, kept until it's renamed or moved, so rites don't build it every frame.
+    /// </summary>
+    public string TargetPath => _targetPath ??= _target.GetPath().ToString();
+
     /// <summary>
     /// Creates and attaches a ProcessHook to the target node.
     /// </summary>
@@ -42,21 +55,30 @@ internal partial class ProcessHook : Node
             ProcessMode = ProcessModeEnum.Always
         };
         hook._target = target;
-        hook.SetProcess(process);
-        hook.SetPhysicsProcess(physicsProcess);
-        
-        // Use CallDeferred to avoid "Parent node is busy setting up children" errors
-        // during initial scene tree traversal in _Ready()
-        target.CallDeferred(Node.MethodName.AddChild, hook, false, (int)InternalMode.Front);
-        
+        hook.Want(process, physicsProcess);
+
+        var id = target.GetInstanceId();
+        _pending[id] = hook;
+
+        // Deferred to avoid "Parent node is busy setting up children" errors during the initial tree traversal in _Ready().
+        // A target freed before then never gets the hook, so the hook is freed instead of leaking.
+        Callable.From(() =>
+        {
+            _pending.Remove(id);
+            if (IsInstanceValid(target)) target.AddChild(hook, false, InternalMode.Front);
+            else hook.Free();
+        }).CallDeferred();
+
         return hook;
     }
-    
+
     /// <summary>
-    /// Finds an existing ProcessHook on the target, or null if none exists.
+    /// Finds an existing ProcessHook on the target, including one still waiting to be added, or null if none exists.
     /// </summary>
     public static ProcessHook? Find(Node target)
     {
+        if (_pending.TryGetValue(target.GetInstanceId(), out var pending)) return pending;
+
         // Internal nodes require explicit includeInternal: true
         for (var i = 0; i < target.GetChildCount(includeInternal: true); i++)
         {
@@ -65,7 +87,7 @@ internal partial class ProcessHook : Node
         }
         return null;
     }
-    
+
     /// <summary>
     /// Gets existing or creates new ProcessHook for the target.
     /// </summary>
@@ -74,28 +96,46 @@ internal partial class ProcessHook : Node
         var existing = Find(target);
         if (existing is null) return Create(target, process, physicsProcess);
 
-        // Enable additional processing if needed
-        if (process && !existing.IsProcessing())
-            existing.SetProcess(true);
-        if (physicsProcess && !existing.IsPhysicsProcessing())
-            existing.SetPhysicsProcess(true);
+        existing.Want(process, physicsProcess);
         return existing;
-
     }
-    
+
+    // Only ever turns processing on: what one rite needs stays on when another asks for something else.
+    private void Want(bool process, bool physicsProcess)
+    {
+        _wantsProcess |= process;
+        _wantsPhysicsProcess |= physicsProcess;
+        if (IsNodeReady()) Apply();
+    }
+
+    private void Apply()
+    {
+        SetProcess(_wantsProcess);
+        SetPhysicsProcess(_wantsPhysicsProcess);
+    }
+
+    // Godot turns on both kinds of processing at ready, since this script overrides both; only the wanted ones stay on.
+    public override void _Ready() => Apply();
+
+    public override void _EnterTree() => _targetPath = null;
+
+    public override void _Notification(int what)
+    {
+        if (what == NotificationPathRenamed) _targetPath = null;
+    }
+
     public override void _Process(double delta)
     {
         // This hook always processes, so it follows its target's pause mode by checking CanProcess.
-        if (!_target.IsProcessing() || !_target.CanProcess()) return;
+        if (!_target.CanProcess()) return;
         Processed?.Invoke(delta, _target);
-        InstanceProcessed?.Invoke(delta);
+        if (_target.IsProcessing()) InstanceProcessed?.Invoke(delta);
     }
-    
+
     public override void _PhysicsProcess(double delta)
     {
-        if (!_target.IsPhysicsProcessing() || !_target.CanProcess()) return;
+        if (!_target.CanProcess()) return;
         PhysicsProcessed?.Invoke(delta, _target);
-        InstancePhysicsProcessed?.Invoke(delta);
+        if (_target.IsPhysicsProcessing()) InstancePhysicsProcessed?.Invoke(delta);
     }
 }
-

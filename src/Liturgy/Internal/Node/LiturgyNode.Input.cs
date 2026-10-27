@@ -11,18 +11,20 @@ internal sealed partial class LiturgyNode
 {
     private void SetupInputCallbacks()
     {
-        SetupInputHook<OnInput>(_inputCallbacks, attr => attr.Priority, "OnInput");
-        SetupInputHook<OnUnhandledInput>(_unhandledInputCallbacks, attr => attr.Priority, "OnUnhandledInput");
-        SetupInputHook<OnUnhandledKeyInput>(_unhandledKeyInputCallbacks, attr => attr.Priority, "OnUnhandledKeyInput");
+        SetupInputHook<OnInput>(_inputCallbacks, attr => attr.Priority, attr => attr.WhilePaused, "OnInput");
+        SetupInputHook<OnUnhandledInput>(_unhandledInputCallbacks, attr => attr.Priority, attr => attr.WhilePaused, "OnUnhandledInput");
+        SetupInputHook<OnUnhandledKeyInput>(_unhandledKeyInputCallbacks, attr => attr.Priority, attr => attr.WhilePaused, "OnUnhandledKeyInput");
+        UpdateInputRelay();
     }
 
     private void SetupInputHook<TAttr>(
-        List<Action<InputEvent>> callbacks,
+        List<(Action<InputEvent> Callback, bool WhilePaused)> callbacks,
         Func<TAttr, int> getPriority,
+        Func<TAttr, bool> getWhilePaused,
         string attrName) where TAttr : Attribute
     {
         var methods = ScanForMethods<TAttr>();
-        var validEntries = new List<(MethodInfo Method, int Priority)>();
+        var validEntries = new List<(MethodInfo Method, int Priority, bool WhilePaused)>();
 
         foreach (var (method, attr) in methods)
         {
@@ -48,15 +50,15 @@ internal sealed partial class LiturgyNode
                     break;
             }
 
-            validEntries.Add((method, priority));
+            validEntries.Add((method, priority, getWhilePaused(attr)));
         }
 
-        foreach (var (method, _) in validEntries.OrderBy(e => e.Priority))
+        foreach (var (method, _, whilePaused) in validEntries.OrderBy(e => e.Priority))
         {
             var callback = CreateInputCallback(method);
             if (callback is not null)
             {
-                callbacks.Add(callback);
+                callbacks.Add((callback, whilePaused));
             }
         }
     }
@@ -95,33 +97,41 @@ internal sealed partial class LiturgyNode
         return DelegateFactory.CreateCallback<InputEvent>(method, paramType);
     }
 
-    public override void _Input(InputEvent @event)
-    {
-        foreach (var callback in _inputCallbacks)
-        {
-            RiteCall.Run(callback, @event);
-        }
+    /// <summary>
+    /// Asks the input relay for each kind of input that has a static or interface rite, and for no other.
+    /// </summary>
+    private void UpdateInputRelay() => _inputRelay?.Want(
+        _inputCallbacks.Count > 0 || _interfaceInputCount.Input > 0,
+        _unhandledInputCallbacks.Count > 0 || _interfaceInputCount.UnhandledInput > 0,
+        _unhandledKeyInputCallbacks.Count > 0 || _interfaceInputCount.UnhandledKeyInput > 0);
 
-        DispatchInterfaceInput(_interfaceInput, @event);
+    internal void DispatchInput(InputEvent @event)
+    {
+        DispatchStaticInput(_inputCallbacks, @event);
+        DispatchInterfaceInput(InterfaceInput.Input, @event);
     }
 
-    public override void _UnhandledInput(InputEvent @event)
+    internal void DispatchUnhandledInput(InputEvent @event)
     {
-        foreach (var callback in _unhandledInputCallbacks)
-        {
-            RiteCall.Run(callback, @event);
-        }
-
-        DispatchInterfaceInput(_interfaceUnhandledInput, @event);
+        DispatchStaticInput(_unhandledInputCallbacks, @event);
+        DispatchInterfaceInput(InterfaceInput.UnhandledInput, @event);
     }
 
-    public override void _UnhandledKeyInput(InputEvent @event)
+    internal void DispatchUnhandledKeyInput(InputEvent @event)
     {
-        foreach (var callback in _unhandledKeyInputCallbacks)
-        {
-            RiteCall.Run(callback, @event);
-        }
+        DispatchStaticInput(_unhandledKeyInputCallbacks, @event);
+        DispatchInterfaceInput(InterfaceInput.UnhandledKeyInput, @event);
+    }
 
-        DispatchInterfaceInput(_interfaceUnhandledKeyInput, @event);
+    // The relay always processes; a rite without WhilePaused runs only when the Liturgy node itself could, as it did before.
+    private void DispatchStaticInput(List<(Action<InputEvent> Callback, bool WhilePaused)> callbacks, InputEvent @event)
+    {
+        if (callbacks.Count == 0) return;
+
+        var canProcess = CanProcess();
+        foreach (var (callback, whilePaused) in callbacks)
+        {
+            if (whilePaused || canProcess) RiteCall.Run(callback, @event);
+        }
     }
 }

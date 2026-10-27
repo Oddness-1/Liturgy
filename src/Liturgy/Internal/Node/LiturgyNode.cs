@@ -29,10 +29,11 @@ internal sealed partial class LiturgyNode : Node
     private readonly Dictionary<string, int> _processEntryMatchCounts = new();
     private readonly HashSet<string> _processEntryWarned = new();
     
-    // Callbacks for input hooks
-    private readonly List<Action<InputEvent>> _inputCallbacks = [];
-    private readonly List<Action<InputEvent>> _unhandledInputCallbacks = [];
-    private readonly List<Action<InputEvent>> _unhandledKeyInputCallbacks = [];
+    // Callbacks for input hooks, run from the input relay so that WhilePaused ones still get input while the tree is paused
+    private readonly List<(Action<InputEvent> Callback, bool WhilePaused)> _inputCallbacks = [];
+    private readonly List<(Action<InputEvent> Callback, bool WhilePaused)> _unhandledInputCallbacks = [];
+    private readonly List<(Action<InputEvent> Callback, bool WhilePaused)> _unhandledKeyInputCallbacks = [];
+    private InputRelay? _inputRelay;
     
     // Callbacks for scene tree hooks
     private readonly List<Action<Node>> _nodeAddedCallbacks = [];
@@ -41,6 +42,9 @@ internal sealed partial class LiturgyNode : Node
     
     // OnReady RootReady mode: callbacks for specific targeted nodes
     private readonly Dictionary<string, List<Action<Node>>> _onReadyTargetedCallbacks = new();
+
+    // OnReady RootReady mode: target paths by the name of the node they end in, to rule out added nodes cheaply
+    private readonly Dictionary<StringName, List<string>> _onReadyTargetNames = new();
     
     // OnReady RootReady mode: callbacks that fire once when /root is ready (no target)
     private readonly List<Action<Window>> _onReadyRootReadyCallbacks = [];
@@ -61,8 +65,8 @@ internal sealed partial class LiturgyNode : Node
     
     private readonly HashSet<BaseButton> _subscribedButtons = [];
     
-    // Track nodes we've subscribed to for OnReady
-    private readonly HashSet<Node> _subscribedForReady = [];
+    // Nodes waiting for their ready for PerNode OnReady rites, by id; each leaves the set when it's ready.
+    private readonly HashSet<ulong> _pendingPerNodeReady = [];
 
     public override void _Ready()
     {
@@ -75,6 +79,7 @@ internal sealed partial class LiturgyNode : Node
         // Counting, timing and the harness are for editor runs; an exported game calls rites directly.
         Rite.Diagnostics.IsEnabled = Harness.IsWanted();
         RiteInfo.RootId = _root.GetInstanceId();
+        GetTree().NodeAdded += OnNodeAddedForShield;
         GetTree().NodeRemoved += OnNodeRemovedForShield;
 
         // Initialize report (only when Debug is set and running from the editor)
@@ -83,6 +88,11 @@ internal sealed partial class LiturgyNode : Node
 
         // Before the rites are wired, so building it is never seen by them.
         if (Rite.Diagnostics.IsEnabled) AddChild(new Harness());
+
+        // First child, so the harness (a later sibling) still sees input before any rite; it starts with no input on.
+        _inputRelay = InputRelay.Create(this);
+        AddChild(_inputRelay);
+        MoveChild(_inputRelay, 0);
 
         // Each category is set up on its own, so a failure in one is reported and the rest still work.
         Action[] setups =
@@ -285,17 +295,21 @@ internal sealed partial class LiturgyNode : Node
         simple.StartsWith("Microsoft", StringComparison.Ordinal) ||
         simple is "mscorlib" or "netstandard" or "GodotSharp" or "GodotSharpEditor" or "GodotPlugins" or "GodotTools" or "Liturgy");
 
-    private static IEnumerable<Type> GetUserTypes()
+    private static List<Type>? _userTypes;
+
+    // Walked once and kept: both the rite scan and the AssignNode scan read it.
+    private static List<Type> GetUserTypes()
     {
+        if (_userTypes is not null) return _userTypes;
+
+        _userTypes = [];
         foreach (var assembly in GetUserAssemblies())
         {
-            Type[] types;
-
-            try { types = assembly.GetTypes(); }
-            catch (ReflectionTypeLoadException exception) { types = exception.Types.OfType<Type>().ToArray(); }
-
-            foreach (var type in types) yield return type;
+            try { _userTypes.AddRange(assembly.GetTypes()); }
+            catch (ReflectionTypeLoadException exception) { _userTypes.AddRange(exception.Types.OfType<Type>()); }
         }
+
+        return _userTypes;
     }
 
     /// <summary>

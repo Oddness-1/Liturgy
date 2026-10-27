@@ -241,7 +241,10 @@ internal sealed partial class LiturgyNode
         RecordSignalRites(id, groups.Values.SelectMany(group => group.Bindings).Select(binding => binding.Rite.Method));
     }
 
-    private static Callable CreateSignalCallable(int arity, Action<Variant[]> handler) => arity switch
+    // The arguments are a span so each emission passes them on the stack instead of in a new array.
+    private delegate void SignalHandler(ReadOnlySpan<Variant> arguments);
+
+    private static Callable CreateSignalCallable(int arity, SignalHandler handler) => arity switch
     {
         0 => Callable.From(() => handler([])),
         1 => Callable.From((Variant a) => handler([a])),

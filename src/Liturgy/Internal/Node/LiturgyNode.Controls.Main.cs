@@ -126,6 +126,9 @@ internal sealed partial class LiturgyNode
     
     private void SubscribeControl(Node node)
     {
+        // Most nodes are none of these; only the ones that are pay for building a path.
+        if (node is not (LineEdit or TextEdit or Range or OptionButton or ItemList or TabContainer or TabBar or ColorPicker or ColorPickerButton or FileDialog)) return;
+
         var path = node.GetPath().ToString();
 
         switch (node)

@@ -43,6 +43,9 @@ internal static class LiturgyReport
     
     // ProcessHook attachment details
     private static readonly List<ProcessHookAttachment> _processHookAttachments = [];
+
+    // The report is written once at startup; hooks attached later have nowhere to go, so they aren't kept.
+    private static bool _generated;
     internal readonly record struct ProcessHookAttachment(string NodeType, string Path, bool Process, bool PhysicsProcess);
     internal readonly record struct HookEntry(string Method, string? Mode, string? Target, string? Exclude, int Priority, string? TypeFilter);
 
@@ -52,6 +55,7 @@ internal static class LiturgyReport
     {
         _report.Clear();
         _warnings.Clear();
+        _generated = false;
         _totalHooks = 0;
         _processHooksCreated = 0;
         _readySubscriptions = 0;
@@ -116,7 +120,7 @@ internal static class LiturgyReport
     
     public static void AddProcessHookAttachment(string nodeType, string path, bool process, bool physicsProcess)
     {
-        if (!IsEnabled) return;
+        if (!IsEnabled || _generated) return;
         _processHookAttachments.Add(new ProcessHookAttachment(nodeType, path, process, physicsProcess));
     }
 
@@ -200,6 +204,7 @@ internal static class LiturgyReport
     {
         if (!IsEnabled) return;
 
+        _generated = true;
         _report.Clear();
         
         // Header

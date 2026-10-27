@@ -131,30 +131,46 @@ internal sealed class SignalRite
         /// </summary>
         public bool Accepts(Node node) => sourceType is null || sourceType.IsInstanceOfType(node);
 
-        public void Invoke(Node node, Variant[] arguments)
-        {
-            var values = parameterCount == 0 ? [] : new object?[parameterCount];
-            var offset = 0;
+        // Kept between emissions so a call doesn't allocate its argument array; a call made from inside this rite's own
+        // call (a signal emitted by the rite) finds it taken and makes its own.
+        private object?[]? _spare;
 
-            if (sourceType is not null) values[offset++] = node;
+        public void Invoke(Node node, ReadOnlySpan<Variant> arguments)
+        {
+            var values = parameterCount == 0 ? [] : _spare ?? new object?[parameterCount];
+            _spare = null;
 
             try
             {
-                for (var i = 0; i < converters.Length; i++)
+                var offset = 0;
+                if (sourceType is not null) values[offset++] = node;
+
+                try
                 {
-                    var (accepted, value) = converters[i](arguments[i]);
-                    if (!accepted) return;
-                    values[offset + i] = value;
+                    for (var i = 0; i < converters.Length; i++)
+                    {
+                        var (accepted, value) = converters[i](arguments[i]);
+                        if (!accepted) return;
+                        values[offset + i] = value;
+                    }
+                }
+                catch (Exception exception) when (exception is InvalidCastException or FormatException or OverflowException)
+                {
+                    Rite.ReportFailure(exception);
+                    return;
+                }
+
+                try { RiteProbe.Run(Rite.Method, node, (Rite, node, values), static call => call.Rite.Method.Invoke(call.Rite.OnInstance ? call.node : null, BindingFlags.DoNotWrapExceptions, null, call.values, CultureInfo.InvariantCulture)); }
+                catch (Exception exception) { RiteCall.Report(exception, Rite.MethodName); }
+            }
+            finally
+            {
+                if (values.Length > 0)
+                {
+                    Array.Clear(values);
+                    _spare = values;
                 }
             }
-            catch (Exception exception) when (exception is InvalidCastException or FormatException or OverflowException)
-            {
-                Rite.ReportFailure(exception);
-                return;
-            }
-
-            try { RiteProbe.Run(Rite.Method, node, (Rite, node, values), static call => call.Rite.Method.Invoke(call.Rite.OnInstance ? call.node : null, BindingFlags.DoNotWrapExceptions, null, call.values, CultureInfo.InvariantCulture)); }
-            catch (Exception exception) { RiteCall.Report(exception, Rite.MethodName); }
         }
     }
 }
@@ -174,7 +190,8 @@ internal readonly record struct SignalShape(int Arity, Variant.Type[] ArgumentTy
         return hash.ToHashCode();
     }
 
-    private static readonly Dictionary<(string Key, StringName Signal), SignalShape> _cache = [];
+    private static readonly Dictionary<(string ClassName, StringName Signal), SignalShape> _byClass = [];
+    private static readonly Dictionary<(Type Type, StringName Signal), SignalShape> _byType = [];
 
     /// <summary>
     /// The shape of a signal on an object, or null if the object doesn't have it.
@@ -185,19 +202,19 @@ internal readonly record struct SignalShape(int Arity, Variant.Type[] ArgumentTy
 
         // Engine signals are fixed per class, and a C# script's signals per type; GDScript and user signals aren't, so they're read each time.
         var className = emitter.GetClass();
-        if (ClassDB.ClassHasSignal(className, signal)) return Cached($"class:{className}", signal, () => FromInfo(ClassDB.ClassGetSignal(className, signal)));
+        if (ClassDB.ClassHasSignal(className, signal)) return Cached(_byClass, (className, signal), () => FromInfo(ClassDB.ClassGetSignal(className, signal)));
 
         var type = emitter.GetType();
-        if (type.Assembly != typeof(GodotObject).Assembly) return Cached($"type:{type.AssemblyQualifiedName}", signal, () => FromList(emitter, signal));
+        if (type.Assembly != typeof(GodotObject).Assembly) return Cached(_byType, (type, signal), () => FromList(emitter, signal));
 
         return FromList(emitter, signal);
     }
 
-    private static SignalShape Cached(string key, StringName signal, Func<SignalShape> read)
+    private static SignalShape Cached<TKey>(Dictionary<TKey, SignalShape> cache, TKey key, Func<SignalShape> read) where TKey : notnull
     {
-        if (_cache.TryGetValue((key, signal), out var shape)) return shape;
+        if (cache.TryGetValue(key, out var shape)) return shape;
         shape = read();
-        _cache[(key, signal)] = shape;
+        cache[key] = shape;
         return shape;
     }
 

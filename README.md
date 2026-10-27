@@ -75,8 +75,10 @@ first C# script, it builds that attribute, and Liturgy adds a `Liturgy` node to 
 the main scene. Nothing is written to `project.godot`. This works the same when running from the editor and in an
 exported game. In the editor itself it does nothing.
 
-Only assemblies that reference Liturgy are scanned for hooks, so large dependencies cost nothing at startup. A
-library of rites that your game references is found even if .NET hasn't loaded it yet when Liturgy starts.
+Only assemblies that reference Liturgy are scanned for hooks, so large dependencies aren't searched at startup. To find
+those assemblies, Liturgy reads the reference lists of your other assemblies, which loads them a little earlier than
+.NET otherwise would. A library of rites that your game references is found even if .NET hasn't loaded it yet when
+Liturgy starts.
 
 ## The Harness
 
@@ -300,6 +302,9 @@ private static void AdvanceClock(double delta) => Clock.Tick(delta);
 `WhilePaused` callbacks run at the start of each frame, before the pausable ones, so `Priority` orders them only among
 themselves.
 
+`Target` and `PerNode` rites run for their nodes every frame the node isn't paused, even when the node doesn't process
+on its own (no `_Process` override, or `SetProcess(false)`). They don't turn the node's own processing on.
+
 ---
 
 ## Input
@@ -322,7 +327,13 @@ private static void DebugKeys(InputEvent e)
     if (e is InputEventKey key)
         GD.Print($"Key: {key.Keycode}");
 }
+
+// Keep getting input while the tree is paused, e.g. in a pause menu
+[Rite.OnInput(WhilePaused = true)]
+private static void ReleaseFocus(InputEventMouseButton click) { }
 ```
+
+Input rites pause with the game, as a pausable node's input does, unless they set `WhilePaused`.
 
 ---
 
@@ -663,7 +674,8 @@ public partial class Card : Control, IHoverable
 - **`OnProcess` / `OnPhysicsProcess`** run per node every frame, with the delta. They turn processing on for the node,
   as overriding `_Process` would, and stop while the node can't process (paused).
 - **`OnInput` / `OnUnhandledInput` / `OnUnhandledKeyInput`** pass the event to each implementing node in the tree,
-  filtered by the event type you declare.
+  filtered by the event type you declare, while the node can process; `WhilePaused` is ignored here, since the node's
+  own process mode decides.
 - `Exclude` and `Priority` work; `Target` is ignored, since the rite belongs to every implementer. `Mode` doesn't apply.
 - `OnNodeAdded`, `OnNodeRemoved` and `OnTreeChanged` aren't supported on interfaces; declare them static.
 - Generic interfaces work: each implementation runs with its own type arguments.
@@ -716,6 +728,10 @@ private static void GameplayButtons(BaseButton btn) { }
 
 Patterns that start with a wildcard float free; all others are anchored under `/root/` like any other path.
 
+Signal rites (buttons, focus, hover and the rest) match `Target` and `Exclude` against the path a node had when it
+entered the tree. Renaming a node that's already in the tree doesn't change which of them it gets; moving it with
+`Reparent` does.
+
 ### Priority
 
 Control execution order (lower runs first):
@@ -745,7 +761,7 @@ Target = "/MyAutoload/Btn"  // → /MyAutoload/Btn (absolute)
 
 | Mode | When it fires |
 |------|---------------|
-| `RootReady` (default) | Once when `/root` is ready. With `Target`: when each specified node is ready. |
+| `RootReady` (default) | Once when `/root` is ready. With `Target`: for the node at each path, and again for each new node that becomes ready there (a node only moved there doesn't count). |
 | `Immediate` | During Liturgy initialization, before `/root` is ready. |
 | `PerNode` | For each matching node as it becomes ready. |
 

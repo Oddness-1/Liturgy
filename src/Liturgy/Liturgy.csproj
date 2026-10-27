@@ -27,7 +27,8 @@
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageIcon>icon.png</PackageIcon>
-    <PackageOutputPath>S:\Game Dev\Libraries\NuGet (Local)</PackageOutputPath>
+    <!-- The maintainer's local feed; anyone else's pack lands in the usual bin folder. -->
+    <PackageOutputPath Condition="Exists('S:\Game Dev\Libraries\NuGet (Local)')">S:\Game Dev\Libraries\NuGet (Local)</PackageOutputPath>
   </PropertyGroup>
 
   <ItemGroup>

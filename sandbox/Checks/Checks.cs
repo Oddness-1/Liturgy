@@ -34,6 +34,9 @@ public partial class Checks : Node
         await CheckInterfaceRites();
         await CheckStaticInterfaceHooks();
         await CheckDedicatedRites();
+        await CheckNarrowedParameters();
+        await CheckInputWhilePaused();
+        await CheckTargetedReady();
         await CheckDiagnostics();
         await CheckIgnoreGroup();
         await CheckAssignNode();
@@ -101,7 +104,8 @@ public partial class Checks : Node
         var popup = new PopupMenu { Name = "Popup" };
         var menuButton = new MenuButton { Name = "Menu" };
         var label = new RichTextLabel { Name = "Label" };
-        var notifier = new VisibleOnScreenNotifier2D { Name = "Notifier" };
+        // Far off-screen, so in a windowed run Godot never emits screen_entered itself; only the emits below count.
+        var notifier = new VisibleOnScreenNotifier2D { Name = "Notifier", Position = new Vector2(-100000, -100000) };
         AddChild(popup);
         AddChild(menuButton);
         AddChild(label);
@@ -206,10 +210,16 @@ public partial class Checks : Node
     private async Task CheckStaticInterfaceHooks()
     {
         var before = Times("static:iface-ready");
-        AddChild(new ProbeTimer { Name = "Probe2" });
+        var probe = new ProbeTimer { Name = "Probe2" };
+        AddChild(probe);
         await Frames();
         ExpectCount("Static OnReady(PerNode) taking an interface", "static:iface-ready", before + 1);
         Expect("Static OnNodeAdded taking an interface", Times("static:iface-added") >= 2);
+
+        RemoveChild(probe);
+        AddChild(probe);
+        await Frames();
+        ExpectCount("Static OnReady(PerNode): re-entering the tree doesn't repeat it", "static:iface-ready", before + 1);
     }
 
     private async Task CheckDedicatedRites()
@@ -234,6 +244,104 @@ public partial class Checks : Node
         await Frames(3);
         Expect("Dedicated rite: PerNode OnProcess stops while paused", Times("dedicated:pernode-process") == paused, $"{Times("dedicated:pernode-process") - paused} frames while paused");
         GetTree().Paused = false;
+
+        // A node without _Process of its own still gets its process rites, and its hook only does the kind it was made for.
+        var idler = new Idler { Name = "Idler" };
+        AddChild(idler);
+        await Frames(3);
+        Expect("Dedicated rite: PerNode OnProcess runs on a node that doesn't process itself", Times("dedicated:idler-process") >= 1, $"{Times("dedicated:idler-process")} frames");
+        Expect("Dedicated rite: targeted OnProcess runs on a node that doesn't process itself", Times("dedicated:idler-targeted") >= 1, $"{Times("dedicated:idler-targeted")} frames");
+        Expect("Dedicated rite: it doesn't turn the node's own processing on", !idler.IsProcessing());
+        var hook = idler.GetChildren(includeInternal: true).FirstOrDefault(child => child.Name == "__LiturgyProcessHook");
+        Expect("Dedicated rite: an OnProcess hook doesn't also run every physics tick", hook is not null && hook.IsProcessing() && !hook.IsPhysicsProcessing());
+        idler.QueueFree();
+
+        var scroll = new ScrollContainer { Name = "Scroll" };
+        AddChild(scroll);
+        await Frames();
+        var sorted = Times("dedicated:scroll-sorted");
+        scroll.EmitSignal(Container.SignalName.SortChildren);
+        ExpectCount("Dedicated rite: OnSortChildren runs for a ScrollContainer", "dedicated:scroll-sorted", sorted + 1);
+        scroll.QueueFree();
+    }
+
+    // A rite may take a subtype of what its signal passes. It then runs only for that subtype, and the rest of its
+    // category keeps running.
+    private async Task CheckNarrowedParameters()
+    {
+        var zone = new Area2D { Name = "Zone" };
+        var hero = new Player { Name = "Hero" };
+        var rock = new Node2D { Name = "Rock" };
+        var pad = new Control { Name = "Pad" };
+        var line = new NamedLine { Name = "NamedLine" };
+        var plainLine = new LineEdit { Name = "PlainLine" };
+        var player = new NamedAnimationPlayer { Name = "NamedPlayer" };
+        var plainPlayer = new AnimationPlayer { Name = "PlainPlayer" };
+        var list = new NamedItemList { Name = "NamedList" };
+        foreach (var node in new Node[] { zone, hero, rock, pad, line, plainLine, player, plainPlayer, list }) AddChild(node);
+        await Frames();
+
+        zone.EmitSignal(Area2D.SignalName.BodyEntered, hero);
+        zone.EmitSignal(Area2D.SignalName.BodyEntered, rock);
+        ExpectCount("Narrowed: OnBodyEntered(Player, Area2D) runs for a Player only", "narrow:body-player", 1);
+        ExpectCount("Narrowed: ...and the other body rites still run", "narrow:body-any", 2);
+
+        pad.EmitSignal(Control.SignalName.GuiInput, new InputEventMouseButton());
+        pad.EmitSignal(Control.SignalName.GuiInput, new InputEventKey());
+        ExpectCount("Narrowed: OnGuiInput(InputEventMouseButton, Control) filters by event", "narrow:gui", 1);
+        pad.EmitSignal(Control.SignalName.MouseEntered);
+        ExpectCount("Narrowed: ...and hover rites still run", "narrow:hover", 1);
+
+        line.EmitSignal(LineEdit.SignalName.TextChanged, "hi");
+        plainLine.EmitSignal(LineEdit.SignalName.TextChanged, "no");
+        Expect("Narrowed: OnTextChanged(string, LineEdit subclass)", _values.Contains("narrow:text=hi") && !_values.Contains("narrow:text=no"));
+
+        player.EmitSignal(AnimationMixer.SignalName.AnimationFinished, "spin");
+        plainPlayer.EmitSignal(AnimationMixer.SignalName.AnimationFinished, "spin");
+        ExpectCount("Narrowed: OnAnimationFinished(AnimationPlayer subclass)", "narrow:animation", 1);
+
+        list.EmitSignal(ItemList.SignalName.ItemActivated, 0);
+        ExpectCount("Narrowed: OnItemActivated(ItemList subclass)", "narrow:item", 1);
+
+        foreach (var node in new Node[] { zone, hero, rock, pad, line, plainLine, player, plainPlayer, list }) node.QueueFree();
+        await Frames();
+    }
+
+    private async Task CheckInputWhilePaused()
+    {
+        GetTree().Paused = true;
+        Input.ParseInputEvent(new InputEventKey { Keycode = Key.P, Pressed = true });
+        await Frames(2);
+        ExpectCount("OnInput(WhilePaused) runs while the tree is paused", "pause:input-always", 1);
+        ExpectCount("OnInput without WhilePaused waits while the tree is paused", "pause:input-plain", 0);
+        GetTree().Paused = false;
+
+        Input.ParseInputEvent(new InputEventKey { Keycode = Key.P, Pressed = true });
+        await Frames(2);
+        ExpectCount("OnInput(WhilePaused) runs unpaused too", "pause:input-always", 2);
+        ExpectCount("OnInput without WhilePaused runs unpaused", "pause:input-plain", 1);
+    }
+
+    // Targeted OnReady follows its path: each new node ready there gets it, a node merely moved there doesn't.
+    private async Task CheckTargetedReady()
+    {
+        var first = new Node { Name = "Recurring" };
+        AddChild(first);
+        await Frames();
+        ExpectCount("Targeted OnReady: a node that arrives later", "ready:targeted", 1);
+
+        RemoveChild(first);
+        AddChild(first);
+        await Frames();
+        ExpectCount("Targeted OnReady: re-entering the tree doesn't repeat it", "ready:targeted", 1);
+
+        first.QueueFree();
+        await Frames();
+        AddChild(new Node { Name = "Recurring" });
+        await Frames();
+        ExpectCount("Targeted OnReady: a new node at the same path gets it too", "ready:targeted", 2);
+        GetNode("Recurring").QueueFree();
+        await Frames();
     }
 
     private async Task CheckDiagnostics()
@@ -291,6 +399,13 @@ public partial class Checks : Node
         ExpectCount("Ignore group: OnNodeAdded doesn't see it", "static:iface-added", addedBefore);
         ExpectCount("Ignore group: OnReady(PerNode) doesn't see it", "static:iface-ready", readyBefore);
         Expect("Ignore group: nothing touches it", Rite.Diagnostics.Touching(mob).Count == 0);
+
+        mob.Reparent(this);
+        await Frames();
+        mob.EmitSignal(Mob.SignalName.Died, 1);
+        ExpectCount("Ignore group: a node moved out from under it gets rites again", "died:none", diedBefore + 1);
+        mob.QueueFree();
+        hidden.QueueFree();
     }
 
     private async Task CheckAssignNode()
@@ -424,6 +539,12 @@ public partial class Spinner : Node
     public override void _Process(double delta) { }
 }
 
+public partial class Idler : Node;
+public partial class Player : CharacterBody2D;
+public partial class NamedLine : LineEdit;
+public partial class NamedAnimationPlayer : AnimationPlayer;
+public partial class NamedItemList : ItemList;
+
 public partial class Mob : Node
 {
     [Signal] public delegate void DiedEventHandler(int amount);
@@ -550,11 +671,65 @@ internal static class CheckRites
     [Rite.OnProcess(Mode = Rite.FrameMode.PerNode)]
     private static void SpinnerProcess(Spinner spinner) => Checks.Count("dedicated:pernode-process");
 
+    [Rite.OnReady(Target = "Checks/Recurring")]
+    private static void TargetedReady(Node node) => Checks.Count("ready:targeted");
+
+    [Rite.OnSortChildren]
+    private static void ScrollSorted(ScrollContainer scroll) => Checks.Count("dedicated:scroll-sorted");
+
+    [Rite.OnProcess(Mode = Rite.FrameMode.PerNode)]
+    private static void IdlerProcess(Idler idler) => Checks.Count("dedicated:idler-process");
+
+    [Rite.OnProcess(Target = "Checks/Idler")]
+    private static void IdlerTargeted(double delta, Node idler) => Checks.Count("dedicated:idler-targeted");
+
     [Rite.OnSignal(nameof(Mob.SignalName.Fled), Description = "Counts mobs that flee.")]
     private static void Described() => Checks.Count("fled:described");
 
     [Rite.OnTreeChanged]
     private static void TreeChanged() => Checks.Count("tree:changed");
+
+    [Rite.OnBodyEntered]
+    private static void OnlyPlayer(Player player, Area2D area) => Checks.Count("narrow:body-player");
+
+    [Rite.OnBodyEntered]
+    private static void AnyBody(Node2D body)
+    {
+        if (body.Name == "Hero" || body.Name == "Rock") Checks.Count("narrow:body-any");
+    }
+
+    [Rite.OnGuiInput]
+    private static void MouseOnly(InputEventMouseButton click, Control control)
+    {
+        if (control.Name == "Pad") Checks.Count("narrow:gui");
+    }
+
+    [Rite.OnMouseEntered]
+    private static void Hovered(Control control)
+    {
+        if (control.Name == "Pad") Checks.Count("narrow:hover");
+    }
+
+    [Rite.OnTextChanged]
+    private static void NamedText(string text, NamedLine line) => Checks.Value($"narrow:text={text}");
+
+    [Rite.OnAnimationFinished]
+    private static void NamedFinished(NamedAnimationPlayer player) => Checks.Count("narrow:animation");
+
+    [Rite.OnItemActivated]
+    private static void NamedActivated(NamedItemList list) => Checks.Count("narrow:item");
+
+    [Rite.OnInput(WhilePaused = true)]
+    private static void InputAlways(InputEventKey key)
+    {
+        if (key.Keycode == Key.P && key.Pressed) Checks.Count("pause:input-always");
+    }
+
+    [Rite.OnInput]
+    private static void InputPlain(InputEventKey key)
+    {
+        if (key.Keycode == Key.P && key.Pressed) Checks.Count("pause:input-plain");
+    }
 }
 
 public interface IAssignable;

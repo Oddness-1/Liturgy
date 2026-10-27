@@ -535,33 +535,26 @@ internal sealed partial class LiturgyNode
         if (IsHiddenFromRites(control)) return;
         
         var path = control.GetPath().ToString();
-        var hasTargeted = _focusEnteredTargetedCallbacks.ContainsKey(path) ||
-                          _focusExitedTargetedCallbacks.ContainsKey(path) ||
-                          _mouseEnteredControlTargetedCallbacks.ContainsKey(path) ||
-                          _mouseExitedControlTargetedCallbacks.ContainsKey(path) ||
-                          _resizedTargetedCallbacks.ContainsKey(path) ||
-                          _guiInputTargetedCallbacks.ContainsKey(path) ||
-                          _minimumSizeChangedTargetedCallbacks.ContainsKey(path);
-        
-        var hasGlobal = _focusEnteredGlobalCallbacks.Count > 0 ||
-                        _focusExitedGlobalCallbacks.Count > 0 ||
-                        _mouseEnteredControlGlobalCallbacks.Count > 0 ||
-                        _mouseExitedControlGlobalCallbacks.Count > 0 ||
-                        _resizedGlobalCallbacks.Count > 0 ||
-                        _guiInputGlobalCallbacks.Count > 0 ||
-                        _minimumSizeChangedGlobalCallbacks.Count > 0;
-        
-        if (!hasTargeted && !hasGlobal) return;
+        var focusEntered = _focusEnteredGlobalCallbacks.Count > 0 || _focusEnteredTargetedCallbacks.ContainsKey(path);
+        var focusExited = _focusExitedGlobalCallbacks.Count > 0 || _focusExitedTargetedCallbacks.ContainsKey(path);
+        var mouseEntered = _mouseEnteredControlGlobalCallbacks.Count > 0 || _mouseEnteredControlTargetedCallbacks.ContainsKey(path);
+        var mouseExited = _mouseExitedControlGlobalCallbacks.Count > 0 || _mouseExitedControlTargetedCallbacks.ContainsKey(path);
+        var resized = _resizedGlobalCallbacks.Count > 0 || _resizedTargetedCallbacks.ContainsKey(path);
+        var guiInput = _guiInputGlobalCallbacks.Count > 0 || _guiInputTargetedCallbacks.ContainsKey(path);
+        var minimumSizeChanged = _minimumSizeChangedGlobalCallbacks.Count > 0 || _minimumSizeChangedTargetedCallbacks.ContainsKey(path);
+
+        if (!focusEntered && !focusExited && !mouseEntered && !mouseExited && !resized && !guiInput && !minimumSizeChanged) return;
         
         _subscribedControlsForFocus.Add(control);
         
-        Listen(control, Control.SignalName.FocusEntered, Callable.From(() => OnControlFocusEntered(control, path)));
-        Listen(control, Control.SignalName.FocusExited, Callable.From(() => OnControlFocusExited(control, path)));
-        Listen(control, Control.SignalName.MouseEntered, Callable.From(() => OnControlMouseEntered(control, path)));
-        Listen(control, Control.SignalName.MouseExited, Callable.From(() => OnControlMouseExited(control, path)));
-        Listen(control, Control.SignalName.Resized, Callable.From(() => OnControlResized(control, path)));
-        Listen(control, Control.SignalName.GuiInput, Callable.From((InputEvent e) => OnControlGuiInput(e, control, path)));
-        Listen(control, Control.SignalName.MinimumSizeChanged, Callable.From(() => OnControlMinimumSizeChanged(control, path)));
+        // Only the signals some rite listens for: every connection is a call into C# each time the signal fires.
+        if (focusEntered) Listen(control, Control.SignalName.FocusEntered, Callable.From(() => OnControlFocusEntered(control, path)));
+        if (focusExited) Listen(control, Control.SignalName.FocusExited, Callable.From(() => OnControlFocusExited(control, path)));
+        if (mouseEntered) Listen(control, Control.SignalName.MouseEntered, Callable.From(() => OnControlMouseEntered(control, path)));
+        if (mouseExited) Listen(control, Control.SignalName.MouseExited, Callable.From(() => OnControlMouseExited(control, path)));
+        if (resized) Listen(control, Control.SignalName.Resized, Callable.From(() => OnControlResized(control, path)));
+        if (guiInput) Listen(control, Control.SignalName.GuiInput, Callable.From((InputEvent e) => OnControlGuiInput(e, control, path)));
+        if (minimumSizeChanged) Listen(control, Control.SignalName.MinimumSizeChanged, Callable.From(() => OnControlMinimumSizeChanged(control, path)));
     }
 
     private void SubscribeCollision2DForMouse(CollisionObject2D collision)

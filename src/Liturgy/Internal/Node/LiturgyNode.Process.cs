@@ -508,13 +508,13 @@ internal sealed partial class LiturgyNode
         if (needsProcess && !hook.ProcessRitesAttached)
         {
             hook.ProcessRitesAttached = true;
-            hook.Processed += (delta, target) => OnProcessHookFired(delta, target, _processTargetedEntries);
+            hook.Processed += (delta, target) => OnProcessHookFired(delta, target, hook.TargetPath, _processTargetedEntries);
         }
 
         if (needsPhysicsProcess && !hook.PhysicsProcessRitesAttached)
         {
             hook.PhysicsProcessRitesAttached = true;
-            hook.PhysicsProcessed += (delta, target) => OnProcessHookFired(delta, target, _physicsProcessTargetedEntries);
+            hook.PhysicsProcessed += (delta, target) => OnProcessHookFired(delta, target, hook.TargetPath, _physicsProcessTargetedEntries);
         }
     }
     
@@ -561,10 +561,13 @@ internal sealed partial class LiturgyNode
         return true;
     }
 
-    private static void OnProcessHookFired(double delta, Node target, List<ProcessCallbackEntry> entries)
+    // Runs every frame for every hooked node, so it uses the hook's kept path and allocates nothing.
+    private static void OnProcessHookFired(double delta, Node target, string path, List<ProcessCallbackEntry> entries)
     {
-        var path = target.GetPath().ToString();
-        foreach (var entry in entries.Where(entry => MatchesEntry(target, path, entry))) RiteCall.Run(entry.Callback, delta, target);
+        foreach (var entry in entries)
+        {
+            if (MatchesEntry(target, path, entry)) RiteCall.Run(entry.Callback, delta, target);
+        }
     }
 
     public override void _Process(double delta)

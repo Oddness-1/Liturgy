@@ -11,7 +11,7 @@ public static partial class Rite
     /// <remarks>
     /// <para>
     /// <b>RootReady mode (default):</b> Fires once when <c>/root</c> is ready.
-    /// With <c>Target</c>: fires once when each specified node is ready.
+    /// With <c>Target</c>: fires for the node at each path, and again for each new node that becomes ready there later.
     /// </para>
     /// <para>
     /// <b>Immediate mode:</b> Fires immediately during Liturgy initialization,
@@ -76,7 +76,8 @@ public static partial class Rite
         public ReadyMode Mode { get; set; } = ReadyMode.RootReady;
 
         /// <summary>
-        /// Comma-separated node paths. Fires once when each specified node is ready.
+        /// Comma-separated node paths. Fires for the node at each path, and again for each new node that becomes ready there
+        /// (after a scene change, say). A node moved there with <c>Reparent</c> is already ready and doesn't fire it.
         /// Only used in RootReady mode; ignored in PerNode mode.
         /// </summary>
         public string? Target { get; set; }

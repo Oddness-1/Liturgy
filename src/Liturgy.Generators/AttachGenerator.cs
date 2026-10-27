@@ -16,7 +16,8 @@ namespace Liturgy.Generators;
 public sealed class AttachGenerator : IIncrementalGenerator
 {
     private const string LITURGY_ASSEMBLY = "Liturgy";
-    private const string GODOT_OBJECT = "Godot.GodotObject";
+    private const string GODOT_NAMESPACE = "Godot";
+    private const string GODOT_OBJECT_NAME = "GodotObject";
     private const string ATTACH_ATTRIBUTE = "global::Liturgy.Internal.Attach";
 
     public void Initialize(IncrementalGeneratorInitializationContext context)
@@ -26,7 +27,8 @@ public sealed class AttachGenerator : IIncrementalGenerator
 
         var godotClasses = context.SyntaxProvider
             .CreateSyntaxProvider(
-                static (node, _) => node is ClassDeclarationSyntax { Parent: BaseNamespaceDeclarationSyntax or CompilationUnitSyntax } declaration
+                // A Godot class has a base list on at least one of its parts, so parts without one need no semantic check.
+                static (node, _) => node is ClassDeclarationSyntax { Parent: BaseNamespaceDeclarationSyntax or CompilationUnitSyntax, BaseList: not null } declaration
                                     && declaration.Modifiers.Any(SyntaxKind.PartialKeyword),
                 static (syntax, token) => syntax.SemanticModel.GetDeclaredSymbol((ClassDeclarationSyntax)syntax.Node, token))
             .Where(static type => type is not null && IsGodotObject(type))
@@ -55,7 +57,7 @@ public sealed class AttachGenerator : IIncrementalGenerator
     {
         for (var current = type.BaseType; current is not null; current = current.BaseType)
         {
-            if (current.ToDisplayString() == GODOT_OBJECT) return true;
+            if (current is { Name: GODOT_OBJECT_NAME, ContainingNamespace: { Name: GODOT_NAMESPACE, ContainingNamespace.IsGlobalNamespace: true } }) return true;
         }
 
         return false;

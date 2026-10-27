@@ -215,56 +215,49 @@ internal sealed partial class LiturgyNode
         return null;
     }
 
+    // Targeted OnReady follows its path like AssignNode: the node there when /root is ready gets it, and so does each new
+    // node that later becomes ready at that path (after a scene change, say). A node moved there already ready doesn't.
     private void SubscribeToTargetedNodes()
     {
         foreach (var (targetPath, callbacks) in _onReadyTargetedCallbacks)
         {
-            var node = _root.GetNodeOrNull(targetPath);
-            
-            if (node is null)
-            {
-                // Node doesn't exist yet, watch for it
-                void OnNodeAdded(Node addedNode)
-                {
-                    if (addedNode.GetPath().ToString() != targetPath)
-                    {
-                        // Also check if the target is now resolvable
-                        var resolved = _root.GetNodeOrNull(targetPath);
-                        if (resolved is null) return;
-                        addedNode = resolved;
-                    }
-                    
-                    GetTree().NodeAdded -= OnNodeAdded;
-                    SubscribeToTargetNode(addedNode, callbacks);
-                }
-                
-                GetTree().NodeAdded += OnNodeAdded;
-            }
-            else
-            {
-                SubscribeToTargetNode(node, callbacks);
-            }
+            if (_root.GetNodeOrNull(targetPath) is { } node) SubscribeToTargetNode(node, callbacks, initial: true);
+
+            // The last segment is the node's own name (a %unique name is the name too), so most added nodes are ruled out
+            // without building their path.
+            var name = targetPath[(targetPath.LastIndexOf('/') + 1)..].TrimStart('%');
+            if (!_onReadyTargetNames.TryGetValue(name, out var paths)) _onReadyTargetNames[name] = paths = [];
+            paths.Add(targetPath);
+        }
+
+        GetTree().NodeAdded += OnNodeAddedForTargetedReady;
+    }
+
+    private void OnNodeAddedForTargetedReady(Node node)
+    {
+        if (node.IsNodeReady() || !_onReadyTargetNames.TryGetValue(node.Name, out var paths)) return;
+
+        foreach (var targetPath in paths)
+        {
+            if (_root.GetNodeOrNull(targetPath) == node) SubscribeToTargetNode(node, _onReadyTargetedCallbacks[targetPath], initial: false);
         }
     }
 
-    private static void SubscribeToTargetNode(Node node, List<Action<Node>> callbacks)
+    private void SubscribeToTargetNode(Node node, List<Action<Node>> callbacks, bool initial)
     {
         if (IsShielded(node)) return;
 
         if (node.IsNodeReady())
         {
+            if (!initial) return;
             foreach (var callback in callbacks) RiteCall.Run(callback, node);
+            return;
         }
-        else
+
+        node.Connect(Node.SignalName.Ready, Callable.From(() =>
         {
-            node.Ready += () =>
-            {
-                foreach (var callback in callbacks)
-                {
-                    RiteCall.Run(callback, node);
-                }
-            };
-        }
+            foreach (var callback in callbacks) RiteCall.Run(callback, node);
+        }), (uint)ConnectFlags.OneShot);
     }
 
     private void SubscribeToExistingNodesForPerNodeReady(Node root)
@@ -276,7 +269,7 @@ internal sealed partial class LiturgyNode
         {
             var node = stack.Pop();
             if (IsShielded(node)) continue;
-            SubscribeNodeForPerNodeReady(node);
+            SubscribeNodeForPerNodeReady(node, initial: true);
 
             foreach (var child in node.GetChildren())
             {
@@ -285,36 +278,47 @@ internal sealed partial class LiturgyNode
         }
     }
 
-    private void OnNodeAddedForPerNodeReady(Node node)
+    private void OnNodeAddedForPerNodeReady(Node node) => SubscribeNodeForPerNodeReady(node, initial: false);
+
+    // Like _Ready: once per node. Nodes already ready when Liturgy starts get it now; a node re-entering the tree is
+    // already ready and doesn't. Only nodes still waiting for their ready are tracked, by id, so nothing is held after.
+    private void SubscribeNodeForPerNodeReady(Node node, bool initial)
     {
+        if (node.IsNodeReady() && !initial) return;
         if (IsHiddenFromRites(node)) return;
-        SubscribeNodeForPerNodeReady(node);
-    }
 
-    private void SubscribeNodeForPerNodeReady(Node node)
-    {
-        if (IsHiddenFromRites(node) || !_subscribedForReady.Add(node)) return;
+        List<(Action<Node> Callback, HashSet<string>? Excludes, Type? NodeType)>? matching = null;
+        foreach (var entry in _onReadyPerNodeCallbacks)
+        {
+            if (entry.NodeType is null || entry.NodeType.IsInstanceOfType(node)) (matching ??= []).Add(entry);
+        }
 
-        // Check if any PerNode callbacks match this node type
-        var matchingCallbacks = _onReadyPerNodeCallbacks
-            .Where(entry => entry.NodeType is null || entry.NodeType.IsInstanceOfType(node))
-            .ToList();
-        
-        if (matchingCallbacks.Count == 0) return;
+        if (matching is null) return;
 
-        var path = node.GetPath().ToString();
+        if (node.IsNodeReady())
+        {
+            LiturgyReport.IncrementReadySubscriptions();
+            FirePerNodeReadyCallbacks(node, matching);
+            return;
+        }
+
+        var id = node.GetInstanceId();
+        if (!_pendingPerNodeReady.Add(id)) return;
 
         LiturgyReport.IncrementReadySubscriptions();
-
-        if (node.IsNodeReady()) FirePerNodeReadyCallbacks(node, path, matchingCallbacks);
-        else node.Ready += () => FirePerNodeReadyCallbacks(node, path, matchingCallbacks);
+        node.Connect(Node.SignalName.Ready, Callable.From(() =>
+        {
+            _pendingPerNodeReady.Remove(id);
+            FirePerNodeReadyCallbacks(node, matching);
+        }), (uint)ConnectFlags.OneShot);
     }
 
-    private static void FirePerNodeReadyCallbacks(Node node, string path, List<(Action<Node> Callback, HashSet<string>? Excludes, Type? NodeType)> callbacks)
+    private static void FirePerNodeReadyCallbacks(Node node, List<(Action<Node> Callback, HashSet<string>? Excludes, Type? NodeType)> callbacks)
     {
+        string? path = null;
         foreach (var (callback, excludes, _) in callbacks)
         {
-            if (PathMatchesAnyExclude(path, excludes)) continue;
+            if (excludes is not null && PathMatchesAnyExclude(path ??= node.GetPath().ToString(), excludes)) continue;
             RiteCall.Run(callback, node);
         }
     }

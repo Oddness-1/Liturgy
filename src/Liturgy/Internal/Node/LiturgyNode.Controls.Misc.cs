@@ -355,22 +355,17 @@ internal sealed partial class LiturgyNode
 
     private void OnNodeRemovedForMiscControls(Node node)
     {
-        switch (node)
-        {
-            case Slider s: _subscribedSliders.Remove(s); break;
-            case ScrollContainer sc: _subscribedScrollContainers.Remove(sc); break;
-            case Container c: _subscribedContainers.Remove(c); break;
-        }
+        // A ScrollContainer is also a Container, with rites of both kinds, so these aren't one switch.
+        if (node is Slider slider) _subscribedSliders.Remove(slider);
+        if (node is ScrollContainer scroll) _subscribedScrollContainers.Remove(scroll);
+        if (node is Container container) _subscribedContainers.Remove(container);
     }
 
     private void SubscribeMiscControlNode(Node node)
     {
-        switch (node)
-        {
-            case Slider slider: SubscribeSlider(slider); break;
-            case ScrollContainer scroll: SubscribeScrollContainer(scroll); break;
-            case Container container: SubscribeContainer(container); break;
-        }
+        if (node is Slider slider) SubscribeSlider(slider);
+        if (node is ScrollContainer scroll) SubscribeScrollContainer(scroll);
+        if (node is Container container) SubscribeContainer(container);
     }
 
     private void SubscribeSlider(Slider slider)

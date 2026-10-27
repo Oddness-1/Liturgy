@@ -42,6 +42,10 @@ internal sealed partial class LiturgyNode
 
     private static bool IsHiddenFromRites(Node node) => IsShielded(node) || IsInternalNode(node);
 
+    // Connected before every other NodeAdded handler. A node arriving (or moved with Reparent, which removes and re-adds
+    // it at once) is judged again under its new parent; its parent arrived first, so that answer is already fresh.
+    private static void OnNodeAddedForShield(Node node) => _shielded.Remove(node.GetInstanceId());
+
     // In every run, exports included: the shield cache would otherwise keep every node that ever left.
     private void OnNodeRemovedForShield(Node node)
     {

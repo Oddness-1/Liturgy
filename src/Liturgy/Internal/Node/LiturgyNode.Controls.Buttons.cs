@@ -299,23 +299,23 @@ internal sealed partial class LiturgyNode
     {
         if (!_subscribedButtons.Add(button)) return;
 
+        // Like every other rite family, Target and Exclude match the path the button had when it entered the tree.
         var path = button.GetPath().ToString();
         if (_buttonPressedGlobalCallbacks.Count > 0 || _buttonPressedTargetedCallbacks.ContainsKey(path))
-            Listen(button, BaseButton.SignalName.Pressed, Callable.From(() => OnButtonPressedSignal(button)));
+            Listen(button, BaseButton.SignalName.Pressed, Callable.From(() => OnButtonPressedSignal(button, path)));
         
         if (_buttonUpGlobalCallbacks.Count > 0 || _buttonUpTargetedCallbacks.ContainsKey(path))
-            Listen(button, BaseButton.SignalName.ButtonUp, Callable.From(() => OnButtonUpSignal(button)));
+            Listen(button, BaseButton.SignalName.ButtonUp, Callable.From(() => OnButtonUpSignal(button, path)));
         
         if (_buttonDownGlobalCallbacks.Count > 0 || _buttonDownTargetedCallbacks.ContainsKey(path))
-            Listen(button, BaseButton.SignalName.ButtonDown, Callable.From(() => OnButtonDownSignal(button)));
+            Listen(button, BaseButton.SignalName.ButtonDown, Callable.From(() => OnButtonDownSignal(button, path)));
         
         if (_buttonToggledGlobalCallbacks.Count > 0 || _buttonToggledTargetedCallbacks.ContainsKey(path))
-            Listen(button, BaseButton.SignalName.Toggled, Callable.From((bool pressed) => OnButtonToggledSignal(pressed, button)));
+            Listen(button, BaseButton.SignalName.Toggled, Callable.From((bool pressed) => OnButtonToggledSignal(pressed, button, path)));
     }
 
-    private void OnButtonPressedSignal(BaseButton button)
+    private void OnButtonPressedSignal(BaseButton button, string path)
     {
-        var path = button.GetPath().ToString();
 
         if (_buttonPressedTargetedCallbacks.TryGetValue(path, out var targetedCallbacks))
         {
@@ -333,9 +333,8 @@ internal sealed partial class LiturgyNode
         }
     }
 
-    private void OnButtonUpSignal(BaseButton button)
+    private void OnButtonUpSignal(BaseButton button, string path)
     {
-        var path = button.GetPath().ToString();
 
         if (_buttonUpTargetedCallbacks.TryGetValue(path, out var targetedCallbacks))
         {
@@ -353,9 +352,8 @@ internal sealed partial class LiturgyNode
         }
     }
 
-    private void OnButtonDownSignal(BaseButton button)
+    private void OnButtonDownSignal(BaseButton button, string path)
     {
-        var path = button.GetPath().ToString();
 
         if (_buttonDownTargetedCallbacks.TryGetValue(path, out var targetedCallbacks))
         {
@@ -373,9 +371,8 @@ internal sealed partial class LiturgyNode
         }
     }
 
-    private void OnButtonToggledSignal(bool pressed, BaseButton button)
+    private void OnButtonToggledSignal(bool pressed, BaseButton button, string path)
     {
-        var path = button.GetPath().ToString();
 
         if (_buttonToggledTargetedCallbacks.TryGetValue(path, out var targetedCallbacks))
         {
