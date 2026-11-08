@@ -1,0 +1,41 @@
+# Publishes a release's attached package to nuget.org through trusted publishing (no stored API key).
+# The package is the one attached to the GitHub release, so what ships is exactly what was tested before release;
+# nothing is rebuilt here. nuget.org's trusted publishing policy names this file, so keep its name.
+name: Publish to NuGet
+
+on:
+  release:
+    types: [published]
+  # To publish an existing release again by hand, e.g. after a failed run.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to publish (e.g. v0.3.0)
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write   # lets the job ask GitHub for the token nuget.org exchanges for a one-hour key
+    env:
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+    steps:
+      - name: Download the tested package from the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern '*.nupkg' --pattern '*.snupkg' --dir pkg
+
+      - name: NuGet login (one-hour key)
+        id: login
+        uses: NuGet/login@v1
+        with:
+          user: ${{ secrets.NUGET_USER }}
+
+      # Pushing the .nupkg sends the .snupkg beside it too.
+      - name: Push to nuget.org
+        run: dotnet nuget push pkg/*.nupkg --api-key "${{ steps.login.outputs.NUGET_API_KEY }}" --source https://api.nuget.org/v3/index.json
