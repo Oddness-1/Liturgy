@@ -2,6 +2,10 @@
 
 Attribute-based hooks for Godot C#. Write static methods, add attributes, and Liturgy wires them up automatically — globally, across your entire project.
 
+**Liturgy lets static code respond to things that would otherwise need a node.** Usually that's one behavior for many
+nodes: every button, every enemy, every focused control. Sometimes it's something the whole game goes through, like
+losing focus or shutting down, which Godot only announces to nodes.
+
 *Liturgy is an independent project, not affiliated with or endorsed by the Godot Foundation.*
 
 ## Why Liturgy?
@@ -39,6 +43,13 @@ private static void Unhighlight(Control c) => c.Modulate = Colors.White;
 [Rite.OnVisibilityChanged]
 private static void PauseOffscreen(AudioStreamPlayer2D player) 
     => player.StreamPaused = !player.Visible;
+
+// Mute the game while it's in the background
+[Rite.OnApplicationFocusExited]
+private static void Mute() => AudioServer.SetBusMute(0, true);
+
+[Rite.OnApplicationFocusEntered]
+private static void Unmute() => AudioServer.SetBusMute(0, false);
 ```
 
 No manual wiring. No base classes. No forgetting to connect signals. It just works.
@@ -48,7 +59,7 @@ No manual wiring. No base classes. No forgetting to connect signals. It just wor
 Add the package to your game's `.csproj`:
 
 ```xml
-<PackageReference Include="Liturgy.Godot" Version="0.2.0" />
+<PackageReference Include="Liturgy.Godot" Version="0.3.0" />
 ```
 
 That's all. There's no addon to copy, no plugin to enable and no autoload to register.
@@ -150,10 +161,15 @@ control highlights. Behavior that belongs to one scene belongs in that scene's s
 will find it. If you'd describe a rite with "when this particular node...", it's probably not a rite. Liturgy doesn't
 replace signals you'd connect in a single scene; it replaces wiring the same signal into every scene.
 
+Liturgy also has nothing to add where static code can already listen. Godot offers some events as plain C# events,
+such as `Input.JoyConnectionChanged` and `SceneTree.SceneChanged`: subscribe to those directly, from an
+`[Rite.OnReady]` if you need somewhere to do it.
+
 ## Table of Contents
 
 - [The Harness](#the-harness)
 - [Node Lifecycle](#node-lifecycle)
+- [Application](#application)
 - [AssignNode](#assignnode)
 - [Frame Processing](#frame-processing)
 - [Input](#input)
@@ -212,6 +228,54 @@ private static void Register(Enemy enemy) => EnemyManager.Track(enemy);
 [Rite.OnNodeRemoved]
 private static void Cleanup(Enemy enemy) => EnemyManager.Untrack(enemy);
 ```
+
+---
+
+## Application
+
+Rites for what happens to the game as a whole. Godot announces these only to nodes, through notifications, so static
+code used to need a node of its own just to hear them. Each fires once for the game, with no node involved: they take
+no parameters, and `Priority` is their only option.
+
+| Attribute | When it fires |
+|-----------|---------------|
+| `[Rite.OnApplicationFocusEntered]` | The game gains focus: its window becomes the active one, or it's restored from minimized |
+| `[Rite.OnApplicationFocusExited]` | The game loses focus: another app becomes active, or the game is minimized |
+| `[Rite.OnApplicationPaused]` | The operating system pauses the game (Android and iOS, when it goes to the background) |
+| `[Rite.OnApplicationResumed]` | The operating system resumes the game (Android and iOS, when it comes back) |
+| `[Rite.OnTreePaused]` | The scene tree pauses (`GetTree().Paused` becomes true) |
+| `[Rite.OnTreeUnpaused]` | The scene tree unpauses |
+| `[Rite.OnLanguageChanged]` | The language changes, as with `TranslationServer.SetLocale` |
+| `[Rite.OnApplicationQuit]` | The game shuts down, after every other node has left the tree |
+
+```csharp
+// Let the screen sleep while the game is in the background
+[Rite.OnApplicationFocusExited]
+private static void LetScreenSleep() => DisplayServer.ScreenSetKeepOn(false);
+
+[Rite.OnApplicationFocusEntered]
+private static void KeepScreenOn() => DisplayServer.ScreenSetKeepOn(true);
+
+// Rebuild cached text in the new language
+[Rite.OnLanguageChanged]
+private static void RefreshText() => TextCache.Clear();
+
+// Save settings, however the game is closed
+[Rite.OnApplicationQuit]
+private static void SaveSettings() => Settings.Save();
+```
+
+Good to know:
+
+- **Focus belongs to the game, not to a window.** Moving between the game's own windows and popups fires neither rite.
+- **Paused and resumed are mobile events.** Desktop platforms don't send them. In a desktop game, use the focus rites.
+- **Language rites fire on changes only.** They don't fire for the language the game starts in.
+- **Tree pause rites follow `GetTree().Paused`.** They fire once per pause and once per unpause, whatever any single
+  node's process mode is.
+- **The quit rite runs last.** Liturgy's node is the first child of `/root`, so it leaves the tree after your scene and
+  your autoloads. By the time the rite runs, they're gone: use it for static state (settings, logs, caches), not for
+  reading nodes. It runs whenever the game closes normally, from the window's close button or `GetTree().Quit()`.
+- They aren't supported on interfaces; declare them static.
 
 ---
 
@@ -677,7 +741,8 @@ public partial class Card : Control, IHoverable
   filtered by the event type you declare, while the node can process; `WhilePaused` is ignored here, since the node's
   own process mode decides.
 - `Exclude` and `Priority` work; `Target` is ignored, since the rite belongs to every implementer. `Mode` doesn't apply.
-- `OnNodeAdded`, `OnNodeRemoved` and `OnTreeChanged` aren't supported on interfaces; declare them static.
+- `OnNodeAdded`, `OnNodeRemoved`, `OnTreeChanged` and the [Application](#application) rites aren't supported on
+  interfaces; declare them static.
 - Generic interfaces work: each implementation runs with its own type arguments.
 
 A node that implements the interface but lacks the signal (an `IHoverable` that isn't a Control) is reported once.

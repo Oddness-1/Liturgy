@@ -185,7 +185,7 @@ public sealed class RiteSignatureAnalyzer : DiagnosticAnalyzer
 
     private static void AnalyzeInterfaceRite(SymbolAnalysisContext context, AttributeData attribute, string name, IMethodSymbol method, Location? location, RiteRules rules)
     {
-        if (name is "OnNodeAdded" or "OnNodeRemoved" or "OnTreeChanged")
+        if (name is "OnNodeAdded" or "OnNodeRemoved" or "OnTreeChanged" or "OnApplicationFocusEntered" or "OnApplicationFocusExited" or "OnApplicationPaused" or "OnApplicationResumed" or "OnApplicationQuit" or "OnLanguageChanged" or "OnTreePaused" or "OnTreeUnpaused")
         {
             context.ReportDiagnostic(Diagnostic.Create(NOT_ON_INTERFACES, location, name, method.Name));
             return;
@@ -290,7 +290,15 @@ internal sealed class RiteRules
             ["OnUnhandledKeyInput"] = Rite("nothing, or an InputEvent type", [Derived("InputEvent")]),
             ["OnNodeAdded"] = Rite("nothing, or a node type or interface", [NodeOrInterface()]),
             ["OnNodeRemoved"] = Rite("nothing, or a node type or interface", [NodeOrInterface()]),
-            ["OnTreeChanged"] = Rite("no parameters", new Slot[0])
+            ["OnTreeChanged"] = Rite("no parameters", new Slot[0]),
+            ["OnApplicationFocusEntered"] = Rite("no parameters", new Slot[0]),
+            ["OnApplicationFocusExited"] = Rite("no parameters", new Slot[0]),
+            ["OnApplicationPaused"] = Rite("no parameters", new Slot[0]),
+            ["OnApplicationResumed"] = Rite("no parameters", new Slot[0]),
+            ["OnApplicationQuit"] = Rite("no parameters", new Slot[0]),
+            ["OnLanguageChanged"] = Rite("no parameters", new Slot[0]),
+            ["OnTreePaused"] = Rite("no parameters", new Slot[0]),
+            ["OnTreeUnpaused"] = Rite("no parameters", new Slot[0])
         };
     }
 

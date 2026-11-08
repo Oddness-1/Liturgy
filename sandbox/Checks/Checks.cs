@@ -34,6 +34,7 @@ public partial class Checks : Node
         await CheckInterfaceRites();
         await CheckStaticInterfaceHooks();
         await CheckDedicatedRites();
+        await CheckApplicationRites();
         await CheckNarrowedParameters();
         await CheckInputWhilePaused();
         await CheckTargetedReady();
@@ -220,6 +221,41 @@ public partial class Checks : Node
         AddChild(probe);
         await Frames();
         ExpectCount("Static OnReady(PerNode): re-entering the tree doesn't repeat it", "static:iface-ready", before + 1);
+    }
+
+    // The OS sends these to the main loop, which passes them down the tree; notifying the SceneTree takes the same path.
+    private async Task CheckApplicationRites()
+    {
+        var tree = GetTree();
+        foreach (var what in new[] { NotificationApplicationFocusOut, NotificationApplicationFocusIn, NotificationApplicationPaused, NotificationApplicationResumed })
+            tree.Notification((int)what);
+
+        ExpectCount("OnApplicationFocusExited fires once on focus out", "app:focus-exited", 1);
+        ExpectCount("OnApplicationFocusEntered fires once on focus in", "app:focus-entered", 1);
+        ExpectCount("OnApplicationPaused fires once when the OS pauses the game", "app:paused", 1);
+        ExpectCount("OnApplicationResumed fires once when the OS resumes it", "app:resumed", 1);
+        var order = string.Join(",", _values.Where(value => value.StartsWith("app-order:")));
+        Expect("Application rites run in Priority order", order == "app-order:first,app-order:second", order);
+
+        var locale = TranslationServer.GetLocale();
+        ExpectCount("OnLanguageChanged doesn't fire for the starting language", "app:language", 0);
+        TranslationServer.SetLocale(locale == "fr" ? "de" : "fr");
+        await Frames();
+        ExpectCount("OnLanguageChanged fires when the language changes", "app:language", 1);
+        TranslationServer.SetLocale(locale);
+        await Frames();
+
+        // Earlier checks pause the tree too, so these count from here.
+        var pausedBefore = Times("app:tree-paused");
+        var unpausedBefore = Times("app:tree-unpaused");
+        tree.Paused = true;
+        await Frames();
+        Expect("OnTreePaused fires once when the tree pauses", Times("app:tree-paused") - pausedBefore == 1, $"{Times("app:tree-paused") - pausedBefore} times");
+        tree.Paused = false;
+        await Frames();
+        Expect("OnTreeUnpaused fires once when it unpauses", Times("app:tree-unpaused") - unpausedBefore == 1, $"{Times("app:tree-unpaused") - unpausedBefore} times");
+
+        ExpectCount("OnApplicationQuit hasn't fired while the game runs", "app:quit", 0);
     }
 
     private async Task CheckDedicatedRites()
@@ -591,6 +627,22 @@ public partial class GenericProbe : Node, IGenericProbe<int>
 
 internal static class CheckRites
 {
+    [Rite.OnApplicationFocusEntered] private static void AppFocusEntered() => Checks.Count("app:focus-entered");
+    [Rite.OnApplicationFocusExited] private static void AppFocusExited() => Checks.Count("app:focus-exited");
+    [Rite.OnApplicationPaused(Priority = 1)] private static void AppPausedSecond() { Checks.Count("app:paused"); Checks.Value("app-order:second"); }
+    [Rite.OnApplicationPaused(Priority = -1)] private static void AppPausedFirst() => Checks.Value("app-order:first");
+    [Rite.OnApplicationResumed] private static void AppResumed() => Checks.Count("app:resumed");
+    [Rite.OnLanguageChanged] private static void LanguageChanged() => Checks.Count("app:language");
+    [Rite.OnTreePaused] private static void TreePaused() => Checks.Count("app:tree-paused");
+    [Rite.OnTreeUnpaused] private static void TreeUnpaused() => Checks.Count("app:tree-unpaused");
+
+    // The exit code is settled by now, so this is checked from outside: the release script looks for the line.
+    [Rite.OnApplicationQuit]
+    private static void AppQuit()
+    {
+        Checks.Count("app:quit");
+        GD.Print("[Checks] OnApplicationQuit ran after the scene left: " + (((SceneTree)Engine.GetMainLoop()).CurrentScene is null));
+    }
     [Rite.OnSignal(nameof(Mob.SignalName.Died))]
     private static void DiedWithSource(Mob mob, int amount) => Checks.Count("died:source+arg");
 

@@ -88,7 +88,7 @@ internal static class HarnessText
         Every method in your game that carries a rite, what it does, which nodes it acts on, and when it last ran. Nothing here is guessed from names: it's read from the rites Liturgy actually wired up.
 
         [b][color=#{gold}]Rites[/color][/b]
-        One row per method. [b]Nodes[/b] is how many nodes in the tree it acts on right now, or [i]game[/i] for rites that act on the game as a whole (input, tree changes, global frames). [b]Fires[/b] counts every run, and [b]Time[/b] is how long all of them took together. Select a row to outline its nodes in blue. Untick it to mute it: Liturgy skips it until you tick it again, so you can see what changes without it. A red row is a rite Liturgy rejected at startup; the console says why.
+        One row per method. [b]Nodes[/b] is how many nodes in the tree it acts on right now, or [i]game[/i] for rites that act on the game as a whole (input, tree changes, global frames, focus, pause and quitting). [b]Fires[/b] counts every run, and [b]Time[/b] is how long all of them took together. Select a row to outline its nodes in blue. Untick it to mute it: Liturgy skips it until you tick it again, so you can see what changes without it. A red row is a rite Liturgy rejected at startup; the console says why.
 
         [b][color=#{gold}]Nodes[/color][/b]
         The scene tree, with how many rites act on each node. [b]Pick on screen[/b] lets you click a control in your game to jump to it. The details list every rite acting on the node, its description, and how often it has fired for that node.

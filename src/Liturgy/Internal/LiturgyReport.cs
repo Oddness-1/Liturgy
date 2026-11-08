@@ -35,6 +35,7 @@ internal static class LiturgyReport
     private static readonly List<HookEntry> _onNodeAddedHooks = [];
     private static readonly List<HookEntry> _onNodeRemovedHooks = [];
     private static readonly List<HookEntry> _onTreeChangedHooks = [];
+    private static readonly List<HookEntry> _applicationHooks = [];
     private static readonly List<HookEntry> _controlHooks = [];
     
     // AssignNode entries
@@ -70,6 +71,7 @@ internal static class LiturgyReport
         _onNodeAddedHooks.Clear();
         _onNodeRemovedHooks.Clear();
         _onTreeChangedHooks.Clear();
+        _applicationHooks.Clear();
         _controlHooks.Clear();
         _assignNodeEntries.Clear();
         _processHookAttachments.Clear();
@@ -187,6 +189,14 @@ internal static class LiturgyReport
         _totalHooks++;
     }
 
+    public static void AddApplicationHook(string hookName, string method, int priority)
+    {
+        if (!IsEnabled) return;
+        // The rite name rides in Mode, as control hooks do; the section is written per rite.
+        _applicationHooks.Add(new HookEntry(method, hookName, null, null, priority, null));
+        _totalHooks++;
+    }
+
     public static void AddControlHook(string hookName, string method, string? target, string? exclude, int priority, string? typeFilter)
     {
         if (!IsEnabled) return;
@@ -261,6 +271,7 @@ internal static class LiturgyReport
         WriteHookSection("OnNodeAdded", _onNodeAddedHooks, hasMode: false, hasTarget: false);
         WriteHookSection("OnNodeRemoved", _onNodeRemovedHooks, hasMode: false, hasTarget: false);
         WriteHookSection("OnTreeChanged", _onTreeChangedHooks, hasMode: false, hasTarget: false);
+        foreach (var group in _applicationHooks.GroupBy(hook => hook.Mode!)) WriteHookSection(group.Key, group.ToList(), hasMode: false, hasTarget: false);
         WriteControlHooksSection();
         WriteProcessHookAttachmentsSection();
 

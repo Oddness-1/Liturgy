@@ -2,6 +2,17 @@
 
 Each release gets a section here, newest first. Liturgy shows the sections a project hasn't seen yet in its update greeting, so write them for the people using it: what they can now do, and anything they must change.
 
+## [0.3.0]
+
+New: rites for what happens to the game as a whole. Godot announces these only to nodes, so static code used to need a node of its own just to hear them. Each takes no parameters and fires once for the game.
+- `OnApplicationFocusEntered` and `OnApplicationFocusExited`: the game gains or loses focus, when another app becomes active or the game is minimized. Moving between the game's own windows doesn't count.
+- `OnApplicationPaused` and `OnApplicationResumed`: the operating system pauses or resumes the game. Android and iOS send these; desktop platforms don't, so use the focus rites there.
+- `OnTreePaused` and `OnTreeUnpaused`: `GetTree().Paused` changes.
+- `OnLanguageChanged`: the language changes. It doesn't fire for the language the game starts in.
+- `OnApplicationQuit`: the game closes. It runs last, after your scene and autoloads have left the tree, so use it for static state like settings or logs, not for reading nodes.
+
+See "Application" in the README for examples.
+
 ## [0.2.0]
 
 New:

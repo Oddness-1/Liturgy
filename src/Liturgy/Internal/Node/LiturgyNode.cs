@@ -102,6 +102,7 @@ internal sealed partial class LiturgyNode : Node
             SetupFrameCallbacks,
             SetupInputCallbacks,
             SetupSceneTreeCallbacks,
+            SetupApplicationCallbacks,
             SetupButtonCallbacks,
             SetupControlCallbacks,
             SetupFocusAndMouseCallbacks,

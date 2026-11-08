@@ -301,6 +301,8 @@ internal sealed partial class Harness : Node
     private static bool IsGameWide(RiteInfo rite) => !rite.OnInterface && rite.Attributes.All(attribute => attribute switch
     {
         OnInput or OnUnhandledInput or OnUnhandledKeyInput or OnNodeAdded or OnNodeRemoved or OnTreeChanged => true,
+        OnApplicationFocusEntered or OnApplicationFocusExited or OnApplicationPaused or OnApplicationResumed or OnApplicationQuit => true,
+        OnLanguageChanged or OnTreePaused or OnTreeUnpaused => true,
         OnProcess process => process.Mode == FrameMode.Global && process.Target is null,
         OnPhysicsProcess process => process.Mode == FrameMode.Global && process.Target is null,
         OnReady ready => ready.Mode == ReadyMode.Immediate || (ready.Mode == ReadyMode.RootReady && ready.Target is null),
